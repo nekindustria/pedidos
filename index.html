@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.23</title>
+    <title>NEK - Sistema de Pedidos v21.24</title>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); margin: 0; padding: 20px; color: #333; }
@@ -34,17 +34,28 @@
 
         .input-qtd, .input-desc { width: 100%; font-weight: bold; text-align: center; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; }
         .print-text { display: none; }
-
-        /* Rodapé de Versão */
         .version-footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
 
+        /* LÓGICA DE IMPRESSÃO PDF */
         @media print {
-            .box-search, .actions-footer, .btn-clear, .btn-csv, .status-sync, .version-footer { display: none !important; }
+            @page { margin: 1cm; size: portrait; }
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; border: none; width: 100%; padding: 0; }
+            .box-search, .actions-footer, .btn, .status-sync, .version-footer { display: none !important; }
+            
+            /* Esconde colunas de Valor S/ IPI e Total S/ IPI no PDF (opcional, ajuste se quiser ver tudo) */
             th:nth-child(4), td:nth-child(4), th:nth-child(8), td:nth-child(8) { display: none !important; }
-            tbody tr { display: none; }
+            
+            .table-container { max-height: none !important; overflow: visible !important; border: none; }
+            table { border: 1px solid #000; width: 100% !important; }
+            th, td { border: 1px solid #ccc !important; padding: 4px !important; }
+            
+            /* A MÁGICA: Esconde todas as linhas, exceto as que tem quantidade */
+            tbody tr { display: none !important; }
             tbody tr.has-qty { display: table-row !important; }
-            input, textarea { display: none !important; }
-            .print-text { display: block !important; }
+            
+            input { display: none !important; }
+            .print-text { display: block !important; font-weight: bold; }
         }
 
         .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 15px; border-top: 2px solid #eee; padding-top: 15px; }
@@ -59,7 +70,7 @@
     <div class="header-top">
         <div>
             <h2 style="margin:0; color:var(--blue);">🚲 NEK - Orçamento de Pedido</h2>
-            <div id="syncStatus" class="status-sync">⏳ Sincronizando...</div>
+            <div id="syncStatus" class="status-sync">⏳ Conectando...</div>
         </div>
         <div id="data-atual" style="font-weight: bold;"></div>
     </div>
@@ -76,7 +87,7 @@
     </div>
 
     <div class="box-search">
-        <input type="text" id="inputBusca" placeholder="Pesquisar produto pelo código ou descrição..." onkeyup="filtrarTabela()">
+        <input type="text" id="inputBusca" placeholder="Pesquisar produto..." onkeyup="filtrarTabela()">
     </div>
 
     <div class="table-container">
@@ -99,13 +110,13 @@
     </div>
 
     <div class="actions-footer">
-        <button class="btn" onclick="if(confirm('Limpar todo o pedido?')) location.reload()">🗑️ Limpar</button>
-        <button class="btn btn-pdf" onclick="exportarPDF()">📄 PDF</button>
-        <button class="btn btn-csv" onclick="exportarCSV()">📥 CSV</button>
+        <button class="btn" onclick="if(confirm('Limpar pedido?')) location.reload()">🗑️ Limpar</button>
+        <button class="btn btn-pdf" onclick="exportarPDF()">📄 Gerar PDF</button>
+        <button class="btn btn-csv" onclick="exportarCSV()">📥 Exportar CSV</button>
     </div>
 
     <div class="version-footer">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.23</strong> | ÚLTIMA ATUALIZAÇÃO: 16/01/2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.24</strong> | ÚLTIMA ATUALIZAÇÃO: 16/01/2026
     </div>
 </div>
 
@@ -113,7 +124,7 @@
     const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Ac-l_uM-etPBQpvjBYrgCz0nV_p_jKraQHw0_pyQSYI/gviz/tq?tqx=out:csv';
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
-    // MÁSCARAS E BUSCA CNPJ
+    // MÁSCARAS
     document.getElementById('telefone').addEventListener('input', e => {
         let v = e.target.value.replace(/\D/g, "");
         v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
@@ -138,7 +149,6 @@
         }
     });
 
-    // CARREGAR DADOS DO GOOGLE SHEETS
     async function carregar() {
         try {
             const r = await fetch(SHEET_URL);
@@ -164,28 +174,34 @@
                 tr.dataset.search = (c[0]+c[1]+c[3]).toLowerCase();
                 tr.innerHTML = `<td>${c[0]}/${c[1]}</td><td>${c[3]}</td><td>${c[2]}</td>
                     <td>R$ ${vE.toFixed(3).replace('.',',')}</td><td>R$ ${vG.toFixed(3).replace('.',',')}</td>
-                    <td><input type="number" class="input-qtd" value="0" oninput="atu(this)" onfocus="this.select()"></td>
-                    <td><input type="number" class="input-desc" value="0" oninput="atu(this)" onfocus="this.select()"></td>
+                    <td><input type="number" class="input-qtd" value="0" oninput="atu(this)" onfocus="this.select()"><span class="print-text">0</span></td>
+                    <td><input type="number" class="input-desc" value="0" oninput="atu(this)" onfocus="this.select()"><span class="print-text">0%</span></td>
                     <td style="text-align:right">R$ 0,000</td><td style="text-align:right">R$ 0,000</td>`;
                 tb.appendChild(tr);
             });
             document.getElementById('syncStatus').innerText = "✅ Sincronizado";
             document.getElementById('syncStatus').className = "status-sync sync-success";
-        } catch(e) { 
-            document.getElementById('syncStatus').innerText = "❌ Erro de Conexão";
-        }
+        } catch(e) {}
     }
 
-    // ATUALIZAÇÃO DE CÁLCULOS
     function atu(el) {
         const tr = el.closest('tr');
         const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
         const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
-        tr.classList.toggle('has-qty', q > 0);
         
+        // MARCAÇÃO DA LINHA PARA O PDF
+        if (q > 0) {
+            tr.classList.add('has-qty');
+        } else {
+            tr.classList.remove('has-qty');
+        }
+
+        // Atualiza textos de impressão
+        tr.querySelector('.input-qtd + .print-text').innerText = q;
+        tr.querySelector('.input-desc + .print-text').innerText = d + "%";
+
         const valE = parseFloat(tr.dataset.valE);
         const valG = parseFloat(tr.dataset.valG);
-        
         const subE = (valE * q) * (1 - (d/100));
         const subG = (valG * q) * (1 - (d/100));
         
@@ -209,9 +225,10 @@
     }
 
     function exportarPDF() {
-        ['razaoSocial','nomeContato','telefone','endereco','cnpj'].forEach(id => {
-            const printId = id === 'razaoSocial' ? 'p-razao' : (id === 'nomeContato' ? 'p-contato' : (id === 'telefone' ? 'p-tel' : (id === 'endereco' ? 'p-end' : 'p-cnpj')));
-            document.getElementById(printId).innerText = document.getElementById(id).value;
+        const ids = ['razaoSocial','nomeContato','telefone','endereco','cnpj'];
+        ids.forEach(id => {
+            const pId = id === 'razaoSocial' ? 'p-razao' : (id === 'nomeContato' ? 'p-contato' : (id === 'telefone' ? 'p-tel' : (id === 'endereco' ? 'p-end' : 'p-cnpj')));
+            document.getElementById(pId).innerText = document.getElementById(id).value;
         });
         window.print();
     }
