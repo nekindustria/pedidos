@@ -3,37 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.22</title>
+    <title>NEK - Sistema de Pedidos v21.23</title>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1550px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 5px solid var(--blue); }
+        .container { max-width: 1550px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 5px solid var(--blue); position: relative; }
+        
         .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--blue); margin-bottom: 20px; padding-bottom: 10px; }
         .status-sync { font-size: 12px; padding: 5px 12px; border-radius: 20px; font-weight: bold; }
         .sync-success { background: #d4edda; color: #155724; }
+        
         .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; }
         .full-width { grid-column: span 3; }
+        
         #cnpj.valido { background-color: #d4edda !important; border-color: #28a745 !important; }
         #cnpj.invalido { background-color: #f8d7da !important; border-color: #dc3545 !important; }
+        
         .total-header-box { background: #eafaf1; border: 2px solid var(--green); border-radius: 8px; padding: 8px; text-align: center; height: 38px; display: flex; flex-direction: column; justify-content: center; }
         .total-header-value { font-size: 20px; font-weight: 800; color: #1b5e20; }
+        
         .box-search { background: var(--yellow); padding: 12px; border: 1px solid #f1c40f; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        
         label { display: block; font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
         input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        
         .table-container { max-height: 550px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th { background: var(--blue); color: white; padding: 10px 5px; text-align: left; position: sticky; top: 0; z-index: 10; font-size: 10px; text-transform: uppercase; }
         td { padding: 6px 5px; border-bottom: 1px solid #eee; font-size: 12px; }
+
         .input-qtd, .input-desc { width: 100%; font-weight: bold; text-align: center; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; }
         .print-text { display: none; }
+
+        /* Rodapé de Versão */
+        .version-footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
+
         @media print {
-            .box-search, .actions-footer, .btn-clear, .btn-csv, .status-sync { display: none !important; }
+            .box-search, .actions-footer, .btn-clear, .btn-csv, .status-sync, .version-footer { display: none !important; }
             th:nth-child(4), td:nth-child(4), th:nth-child(8), td:nth-child(8) { display: none !important; }
             tbody tr { display: none; }
             tbody tr.has-qty { display: table-row !important; }
             input, textarea { display: none !important; }
             .print-text { display: block !important; }
         }
+
         .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 15px; border-top: 2px solid #eee; padding-top: 15px; }
         .btn { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
         .btn-csv { background: var(--green); color: white; }
@@ -63,7 +76,7 @@
     </div>
 
     <div class="box-search">
-        <input type="text" id="inputBusca" placeholder="Pesquisar produto..." onkeyup="filtrarTabela()">
+        <input type="text" id="inputBusca" placeholder="Pesquisar produto pelo código ou descrição..." onkeyup="filtrarTabela()">
     </div>
 
     <div class="table-container">
@@ -86,9 +99,13 @@
     </div>
 
     <div class="actions-footer">
-        <button class="btn" onclick="location.reload()">🗑️ Limpar</button>
+        <button class="btn" onclick="if(confirm('Limpar todo o pedido?')) location.reload()">🗑️ Limpar</button>
         <button class="btn btn-pdf" onclick="exportarPDF()">📄 PDF</button>
         <button class="btn btn-csv" onclick="exportarCSV()">📥 CSV</button>
+    </div>
+
+    <div class="version-footer">
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.23</strong> | ÚLTIMA ATUALIZAÇÃO: 16/01/2026
     </div>
 </div>
 
@@ -96,7 +113,7 @@
     const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Ac-l_uM-etPBQpvjBYrgCz0nV_p_jKraQHw0_pyQSYI/gviz/tq?tqx=out:csv';
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
-    // MÁSCARAS
+    // MÁSCARAS E BUSCA CNPJ
     document.getElementById('telefone').addEventListener('input', e => {
         let v = e.target.value.replace(/\D/g, "");
         v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
@@ -113,15 +130,15 @@
                 const res = await fetch(`https://publica.cnpj.ws/cnpj/${v.replace(/\D/g,"")}`);
                 if(res.ok) {
                     const d = await res.json();
-                    document.getElementById('razaoSocial').value = d.razao_social;
-                    document.getElementById('endereco').value = d.estabelecimento.logradouro + ", " + d.estabelecimento.numero;
+                    document.getElementById('razaoSocial').value = d.razao_social || "";
+                    if(d.estabelecimento) document.getElementById('endereco').value = d.estabelecimento.logradouro + ", " + d.estabelecimento.numero + " - " + d.estabelecimento.bairro;
                     e.target.className = 'valido';
                 }
             } catch(err) { e.target.className = 'valido'; }
         }
     });
 
-    // CARREGAR DADOS
+    // CARREGAR DADOS DO GOOGLE SHEETS
     async function carregar() {
         try {
             const r = await fetch(SHEET_URL);
@@ -147,32 +164,41 @@
                 tr.dataset.search = (c[0]+c[1]+c[3]).toLowerCase();
                 tr.innerHTML = `<td>${c[0]}/${c[1]}</td><td>${c[3]}</td><td>${c[2]}</td>
                     <td>R$ ${vE.toFixed(3).replace('.',',')}</td><td>R$ ${vG.toFixed(3).replace('.',',')}</td>
-                    <td><input type="number" class="input-qtd" value="0" oninput="atu(this)"></td>
-                    <td><input type="number" class="input-desc" value="0" oninput="atu(this)"></td>
+                    <td><input type="number" class="input-qtd" value="0" oninput="atu(this)" onfocus="this.select()"></td>
+                    <td><input type="number" class="input-desc" value="0" oninput="atu(this)" onfocus="this.select()"></td>
                     <td style="text-align:right">R$ 0,000</td><td style="text-align:right">R$ 0,000</td>`;
                 tb.appendChild(tr);
             });
             document.getElementById('syncStatus').innerText = "✅ Sincronizado";
             document.getElementById('syncStatus').className = "status-sync sync-success";
-        } catch(e) {}
+        } catch(e) { 
+            document.getElementById('syncStatus').innerText = "❌ Erro de Conexão";
+        }
     }
 
+    // ATUALIZAÇÃO DE CÁLCULOS
     function atu(el) {
         const tr = el.closest('tr');
         const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
         const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
         tr.classList.toggle('has-qty', q > 0);
-        const subE = (parseFloat(tr.dataset.valE) * q) * (1 - (d/100));
-        const subG = (parseFloat(tr.dataset.valG) * q) * (1 - (d/100));
+        
+        const valE = parseFloat(tr.dataset.valE);
+        const valG = parseFloat(tr.dataset.valG);
+        
+        const subE = (valE * q) * (1 - (d/100));
+        const subG = (valG * q) * (1 - (d/100));
+        
         tr.cells[7].innerText = "R$ " + subE.toFixed(3).replace('.',',');
         tr.cells[8].innerText = "R$ " + subG.toFixed(3).replace('.',',');
-        let tot = 0;
+        
+        let totGeral = 0;
         document.querySelectorAll('tr.has-qty').forEach(t => {
-            const tq = parseFloat(t.querySelector('.input-qtd').value);
-            const td = parseFloat(t.querySelector('.input-desc').value);
-            tot += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
+            const tq = parseFloat(t.querySelector('.input-qtd').value) || 0;
+            const td = parseFloat(t.querySelector('.input-desc').value) || 0;
+            totGeral += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
         });
-        document.getElementById('headerTotalGeral').innerText = "R$ " + tot.toFixed(3).replace('.',',');
+        document.getElementById('headerTotalGeral').innerText = "R$ " + totGeral.toFixed(3).replace('.',',');
     }
 
     function filtrarTabela() {
@@ -183,13 +209,16 @@
     }
 
     function exportarPDF() {
-        ['razao','contato','tel','end','cnpj'].forEach(k => document.getElementById('p-'+k).innerText = document.getElementById(k === 'razao' ? 'razaoSocial' : (k === 'tel' ? 'telefone' : (k === 'end' ? 'endereco' : k))).value);
+        ['razaoSocial','nomeContato','telefone','endereco','cnpj'].forEach(id => {
+            const printId = id === 'razaoSocial' ? 'p-razao' : (id === 'nomeContato' ? 'p-contato' : (id === 'telefone' ? 'p-tel' : (id === 'endereco' ? 'p-end' : 'p-cnpj')));
+            document.getElementById(printId).innerText = document.getElementById(id).value;
+        });
         window.print();
     }
 
     function exportarCSV() {
         const r = document.getElementById('razaoSocial').value || "CLIENTE";
-        let csv = "RAZAO SOCIAL;CNPJ;CONTATO\n" + r + ";" + document.getElementById('cnpj').value + "\n\nCD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
+        let csv = "RAZAO SOCIAL;CNPJ;CONTATO\n" + r + ";" + document.getElementById('cnpj').value + ";" + document.getElementById('nomeContato').value + "\n\nCD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
@@ -199,7 +228,7 @@
         const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `PEDIDO_${r}.csv`;
+        link.download = `PEDIDO_${r.replace(/\s+/g, '_')}.csv`;
         link.click();
     }
 
