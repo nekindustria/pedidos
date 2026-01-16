@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.25</title>
+    <title>NEK - Sistema de Pedidos v21.26</title>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); margin: 0; padding: 20px; color: #333; }
@@ -116,7 +116,7 @@
     </div>
 
     <div class="version-footer">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.25</strong> | ÚLTIMA ATUALIZAÇÃO: 16/01/2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.26</strong> | ÚLTIMA ATUALIZAÇÃO: 16/01/2026
     </div>
 </div>
 
@@ -188,28 +188,23 @@
         const tr = el.closest('tr');
         const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
         const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
-        
         if (q > 0) tr.classList.add('has-qty');
         else tr.classList.remove('has-qty');
-
         tr.querySelector('.input-qtd + .print-text').innerText = q;
         tr.querySelector('.input-desc + .print-text').innerText = d + "%";
-
-        const valE = parseFloat(tr.dataset.valE);
-        const valG = parseFloat(tr.dataset.valG);
-        const subE = (valE * q) * (1 - (d/100));
-        const subG = (valG * q) * (1 - (d/100));
-        
+        const vE = parseFloat(tr.dataset.valE);
+        const vG = parseFloat(tr.dataset.valG);
+        const subE = (vE * q) * (1 - (d/100));
+        const subG = (vG * q) * (1 - (d/100));
         tr.cells[7].innerText = "R$ " + subE.toFixed(3).replace('.',',');
         tr.cells[8].innerText = "R$ " + subG.toFixed(3).replace('.',',');
-        
-        let totGeral = 0;
+        let tot = 0;
         document.querySelectorAll('tr.has-qty').forEach(t => {
             const tq = parseFloat(t.querySelector('.input-qtd').value) || 0;
             const td = parseFloat(t.querySelector('.input-desc').value) || 0;
-            totGeral += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
+            tot += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
         });
-        document.getElementById('headerTotalGeral').innerText = "R$ " + totGeral.toFixed(3).replace('.',',');
+        document.getElementById('headerTotalGeral').innerText = "R$ " + tot.toFixed(3).replace('.',',');
     }
 
     function filtrarTabela() {
@@ -230,8 +225,14 @@
 
     function exportarCSV() {
         const r = document.getElementById('razaoSocial').value || "CLIENTE";
+        const c = document.getElementById('cnpj').value || "";
+        const n = document.getElementById('nomeContato').value || "";
+        const t = document.getElementById('telefone').value || "";
         const o = document.getElementById('obsVenda').value.replace(/;/g, ",").replace(/\n/g, " ");
-        let csv = "RAZAO SOCIAL;CNPJ;CONTATO;OBS\n" + r + ";" + document.getElementById('cnpj').value + ";" + document.getElementById('nomeContato').value + ";" + o + "\n\nCD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
+        
+        // Cabeçalho incluindo o Telefone
+        let csv = "RAZAO SOCIAL;CNPJ;CONTATO;TELEFONE;OBS\n" + r + ";" + c + ";" + n + ";" + t + ";" + o + "\n\nCD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
+        
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
