@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.26</title>
+    <title>NEK - Sistema de Pedidos v21.27</title>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); margin: 0; padding: 20px; color: #333; }
@@ -16,8 +16,9 @@
         .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; }
         .full-width { grid-column: span 3; }
         
-        #cnpj.valido { background-color: #d4edda !important; border-color: #28a745 !important; }
-        #cnpj.invalido { background-color: #f8d7da !important; border-color: #dc3545 !important; }
+        /* Estilos de Validação do CNPJ */
+        #cnpj.valido { background-color: #d4edda !important; border: 2px solid #27ae60 !important; color: #155724; }
+        #cnpj.invalido { background-color: #f8d7da !important; border: 2px solid #e74c3c !important; color: #721c24; }
         
         .total-header-box { background: #eafaf1; border: 2px solid var(--green); border-radius: 8px; padding: 8px; text-align: center; height: 38px; display: flex; flex-direction: column; justify-content: center; }
         .total-header-value { font-size: 20px; font-weight: 800; color: #1b5e20; }
@@ -74,7 +75,7 @@
         <div><label>Nome do Contato</label><input type="text" id="nomeContato"><span class="print-text" id="p-contato"></span></div>
         <div><label>Telefone</label><input type="text" id="telefone" maxlength="15"><span class="print-text" id="p-tel"></span></div>
         <div class="full-width"><label>Endereço de Entrega</label><input type="text" id="endereco"><span class="print-text" id="p-end"></span></div>
-        <div><label>CNPJ</label><input type="text" id="cnpj" maxlength="18"><span class="print-text" id="p-cnpj"></span></div>
+        <div><label>CNPJ</label><input type="text" id="cnpj" maxlength="18" placeholder="00.000.000/0000-00"><span class="print-text" id="p-cnpj"></span></div>
         <div class="total-header-box" style="grid-column: span 2;">
             <div class="total-header-value" id="headerTotalGeral">R$ 0,000</div>
         </div>
@@ -116,7 +117,7 @@
     </div>
 
     <div class="version-footer">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.26</strong> | ÚLTIMA ATUALIZAÇÃO: 16/01/2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.27</strong> | ÚLTIMA ATUALIZAÇÃO: 16/01/2026
     </div>
 </div>
 
@@ -124,7 +125,7 @@
     const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Ac-l_uM-etPBQpvjBYrgCz0nV_p_jKraQHw0_pyQSYI/gviz/tq?tqx=out:csv';
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
-    // MÁSCARAS
+    // MÁSCARA TELEFONE
     document.getElementById('telefone').addEventListener('input', e => {
         let v = e.target.value.replace(/\D/g, "");
         v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
@@ -132,20 +133,60 @@
         e.target.value = v;
     });
 
+    // VALIDAÇÃO MATEMÁTICA CNPJ
+    function validarCNPJ(cnpj) {
+        cnpj = cnpj.replace(/[^\d]+/g, '');
+        if (cnpj == '' || cnpj.length != 14 || /^(\d)\1{13}$/.test(cnpj)) return false;
+        let tamanho = cnpj.length - 2;
+        let numeros = cnpj.substring(0, tamanho);
+        let digitos = cnpj.substring(tamanho);
+        let soma = 0;
+        let pos = tamanho - 7;
+        for (let i = tamanho; i >= 1; i--) {
+            soma += numeros.charAt(tamanho - i) * pos--;
+            if (pos < 2) pos = 9;
+        }
+        let resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+        if (resultado != digitos.charAt(0)) return false;
+        tamanho = tamanho + 1;
+        numeros = cnpj.substring(0, tamanho);
+        soma = 0;
+        pos = tamanho - 7;
+        for (let i = tamanho; i >= 1; i--) {
+            soma += numeros.charAt(tamanho - i) * pos--;
+            if (pos < 2) pos = 9;
+        }
+        resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+        if (resultado != digitos.charAt(1)) return false;
+        return true;
+    }
+
+    // EVENTO CNPJ
     document.getElementById('cnpj').addEventListener('input', async e => {
         let v = e.target.value.replace(/\D/g, "").substring(0,14);
-        v = v.replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d)/, "$1-$2");
-        e.target.value = v;
-        if(v.replace(/\D/g,"").length === 14) {
-            try {
-                const res = await fetch(`https://publica.cnpj.ws/cnpj/${v.replace(/\D/g,"")}`);
-                if(res.ok) {
-                    const d = await res.json();
-                    document.getElementById('razaoSocial').value = d.razao_social || "";
-                    if(d.estabelecimento) document.getElementById('endereco').value = d.estabelecimento.logradouro + ", " + d.estabelecimento.numero + " - " + d.estabelecimento.bairro;
-                    e.target.className = 'valido';
-                }
-            } catch(err) { e.target.className = 'valido'; }
+        let formatado = v.replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d)/, "$1-$2");
+        e.target.value = formatado;
+
+        if(v.length === 14) {
+            if(validarCNPJ(v)) {
+                e.target.className = 'valido';
+                // Tenta consultar endereço
+                try {
+                    const res = await fetch(`https://publica.cnpj.ws/cnpj/${v}`);
+                    if(res.ok) {
+                        const d = await res.json();
+                        document.getElementById('razaoSocial').value = d.razao_social || "";
+                        if(d.estabelecimento) {
+                            const est = d.estabelecimento;
+                            document.getElementById('endereco').value = `${est.logradouro}, ${est.numero} - ${est.bairro} - ${est.cidade.nome}/${est.estado.sigla}`;
+                        }
+                    }
+                } catch(err) { console.log("Erro na API, mas CNPJ é válido."); }
+            } else {
+                e.target.className = 'invalido';
+            }
+        } else {
+            e.target.className = '';
         }
     });
 
@@ -229,10 +270,7 @@
         const n = document.getElementById('nomeContato').value || "";
         const t = document.getElementById('telefone').value || "";
         const o = document.getElementById('obsVenda').value.replace(/;/g, ",").replace(/\n/g, " ");
-        
-        // Cabeçalho incluindo o Telefone
         let csv = "RAZAO SOCIAL;CNPJ;CONTATO;TELEFONE;OBS\n" + r + ";" + c + ";" + n + ";" + t + ";" + o + "\n\nCD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
-        
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
