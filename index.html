@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.20</title>
+    <title>NEK - Sistema de Pedidos v21.21</title>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); margin: 0; padding: 20px; color: #333; }
@@ -18,6 +18,9 @@
         .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; }
         .full-width { grid-column: span 3; }
         
+        #cnpj.valido { background-color: #d4edda !important; border-color: #28a745 !important; color: #155724; font-weight: bold; }
+        #cnpj.invalido { background-color: #f8d7da !important; border-color: #dc3545 !important; color: #721c24; }
+
         .total-header-box { background: #eafaf1; border: 2px solid var(--green); border-radius: 8px; padding: 8px; text-align: center; height: 38px; display: flex; flex-direction: column; justify-content: center; }
         .total-header-label { font-size: 9px; font-weight: bold; color: var(--green); text-transform: uppercase; }
         .total-header-value { font-size: 20px; font-weight: 800; color: #1b5e20; }
@@ -71,8 +74,8 @@
         <div><label>Razão Social</label><input type="text" id="razaoSocial"><span class="print-text" id="p-razao"></span></div>
         <div><label>Nome do Contato</label><input type="text" id="nomeContato"><span class="print-text" id="p-contato"></span></div>
         <div><label>Telefone / Celular</label><input type="text" id="telefone" placeholder="(00) 00000-0000" maxlength="15"><span class="print-text" id="p-tel"></span></div>
-        <div class="full-width"><label>Endereço de Entrega</label><input type="text" id="endereco"><span class="print-text" id="p-end"></span></div>
-        <div><label>CNPJ</label><input type="text" id="cnpj" maxlength="18"><span class="print-text" id="p-cnpj"></span></div>
+        <div class="full-width"><label>Endereço de Entrega</label><input type="text" id="endereco" placeholder="Aguardando CNPJ ou preencha manualmente..."><span class="print-text" id="p-end"></span></div>
+        <div><label>CNPJ (Digite para buscar)</label><input type="text" id="cnpj" placeholder="00.000.000/0000-00" maxlength="18"><span class="print-text" id="p-cnpj"></span></div>
         <div class="total-header-box" style="grid-column: span 2;">
             <div class="total-header-label">Total Geral c/ IPI</div>
             <div class="total-header-value" id="headerTotalGeral">R$ 0,000</div>
@@ -120,9 +123,62 @@
 
 <script>
     const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Ac-l_uM-etPBQpvjBYrgCz0nV_p_jKraQHw0_pyQSYI/gviz/tq?tqx=out:csv';
-
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
+    // --- MÁSCARAS E VALIDAÇÃO ---
+    const inputCnpj = document.getElementById('cnpj');
+    const inputTel = document.getElementById('telefone');
+
+    inputTel.addEventListener('input', e => {
+        let v = e.target.value.replace(/\D/g, "").substring(0, 11);
+        if (v.length > 0) v = "(" + v;
+        if (v.length > 3) v = v.substring(0, 3) + ") " + v.substring(3);
+        if (v.length > 9) v = v.substring(0, v.length === 15 ? 10 : 9) + "-" + v.substring(v.length === 15 ? 10 : 9);
+        e.target.value = v;
+    });
+
+    inputCnpj.addEventListener('input', e => {
+        let v = e.target.value.replace(/\D/g, "").substring(0, 14);
+        v = v.replace(/^(\d{2})(\d)/, "$1.$2");
+        v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+        v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
+        v = v.replace(/(\d{4})(\d)/, "$1-$2");
+        e.target.value = v;
+        if (v.replace(/\D/g, "").length === 14) {
+            validarEBuscarCNPJ(v.replace(/\D/g, ""));
+        } else {
+            inputCnpj.className = '';
+        }
+    });
+
+    async function validarEBuscarCNPJ(cnpj) {
+        // Validação básica de dígitos
+        if (/^(0{14}|1{14}|2{14}|3{14}|4{14}|5{14}|6{14}|7{14}|8{14}|9{14})$/.test(cnpj)) {
+            inputCnpj.className = 'invalido'; return;
+        }
+        
+        inputCnpj.style.opacity = "0.5";
+        try {
+            const res = await fetch(`https://publica.cnpj.ws/cnpj/${cnpj}`);
+            if (res.ok) {
+                const data = await res.json();
+                inputCnpj.className = 'valido';
+                document.getElementById('razaoSocial').value = data.razao_social || "";
+                if(data.estabelecimento) {
+                    const est = data.estabelecimento;
+                    const endCompleto = `${est.logradouro}, ${est.numero} ${est.complemento ? '- ' + est.complemento : ''} - ${est.bairro}, ${est.cidade.nome}/${est.estado.sigla} - CEP: ${est.cep}`;
+                    document.getElementById('endereco').value = endCompleto;
+                }
+            } else {
+                inputCnpj.className = 'invalido';
+            }
+        } catch (e) {
+            inputCnpj.className = 'valido'; // API de consulta pode falhar, não bloqueamos o usuário
+        }
+        inputCnpj.style.opacity = "1";
+    }
+
+    // --- LÓGICA DA TABELA E DADOS ---
     async function carregarDados() {
         const statusEl = document.getElementById('syncStatus');
         try {
@@ -136,18 +192,16 @@
             linhas.forEach((linha, index) => {
                 let col = linha.split(separador).map(c => c.replace(/^"|"$/g, '').trim());
                 if (col.length < 5) return;
-
-                // Só pula a primeira linha se ela for o cabeçalho real (se contiver a palavra "Código" ou "Descrição")
-                if (index === 0 && (col[0].toLowerCase().includes('código') || col[3].toLowerCase().includes('descrição'))) return;
+                if (index === 0 && (col[0].toLowerCase().includes('cód') || col[3].toLowerCase().includes('desc'))) return;
 
                 const codEx = col[0]; const codIv = col[1]; const un = col[2]; const desc = col[3];
-                const limparNumero = (val) => {
-                    if(!val) return 0;
-                    let n = val.replace(/[^\d,.-]/g, '');
+                const limparNum = (v) => {
+                    if(!v) return 0;
+                    let n = v.replace(/[^\d,.-]/g, '');
                     if (n.includes(',') && n.includes('.')) n = n.replace(/\./g, '');
                     return parseFloat(n.replace(',', '.')) || 0;
                 };
-                const vE = limparNumero(col[4]); const vG = limparNumero(col[6]);
+                const vE = limparNum(col[4]); const vG = limparNum(col[6]);
 
                 const tr = document.createElement('tr');
                 tr.dataset.codB = codIv; tr.dataset.valE = vE; tr.dataset.valG = vG;
@@ -221,18 +275,15 @@
             end: document.getElementById('endereco').value || "NAO_INFORMADO",
             obs: document.getElementById('obsVenda').value.replace(/\r?\n/g, " ") || ""
         };
-
         let csv = "RAZAO SOCIAL;CNPJ;CONTATO;TELEFONE;ENDERECO;OBSERVACOES\n";
         csv += `${info.razao};${info.cnpj};${info.contato};${info.tel};${info.end};${info.obs}\n\n`;
         csv += "CD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
-
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
             const vE_liq = parseFloat(tr.dataset.valE) * (1 - (d / 100));
             csv += `${tr.dataset.codB};${q};${vE_liq.toFixed(3).replace('.', ',')}\n`;
         });
-
         const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
