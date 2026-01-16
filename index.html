@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEK - Sistema de Pedidos v21.19</title>
+    <style>
+        :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1550px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 5px solid var(--blue); }
+        
+        /* Cabeçalho */
+        .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--blue); margin-bottom: 20px; padding-bottom: 10px; }
+        .status-sync { font-size: 12px; padding: 5px 12px; border-radius: 20px; font-weight: bold; }
+        .sync-loading { background: #fff3cd; color: #856404; }
+        .sync-success { background: #d4edda; color: #155724; }
+        .sync-error { background: #f8d7da; color: #721c24; }
+
+        /* Grid de Informações do Cliente */
+        .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; }
+        .full-width { grid-column: span 3; }
+        
+        .total-header-box { background: #eafaf1; border: 2px solid var(--green); border-radius: 8px; padding: 8px; text-align: center; height: 38px; display: flex; flex-direction: column; justify-content: center; }
+        .total-header-label { font-size: 9px; font-weight: bold; color: var(--green); text-transform: uppercase; }
+        .total-header-value { font-size: 20px; font-weight: 800; color: #1b5e20; }
+
+        /* Barra de Busca */
+        .box-search { background: var(--yellow); padding: 12px; border: 1px solid #f1c40f; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        
+        label { display: block; font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
+        input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        
+        /* Tabela */
+        .table-container { max-height: 550px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th { background: var(--blue); color: white; padding: 10px 5px; text-align: left; position: sticky; top: 0; z-index: 10; font-size: 10px; text-transform: uppercase; border: 1px solid #444; }
+        td { padding: 6px 5px; border-bottom: 1px solid #eee; font-size: 12px; }
+
+        .input-qtd, .input-desc { width: 100%; font-weight: bold; text-align: center; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; }
+        .print-text { display: none; }
+
+        /* Impressão */
+        @media print {
+            @page { margin: 0.5cm; size: portrait; }
+            .box-search, .actions-footer, .btn-clear, .btn-csv, .status-sync { display: none !important; }
+            th:nth-child(4), td:nth-child(4), th:nth-child(8), td:nth-child(8) { display: none !important; }
+            .container { box-shadow: none; border: none; width: 100%; padding: 0; }
+            .table-container { max-height: none !important; overflow: visible !important; }
+            table { width: 100% !important; border: 1px solid #000; }
+            th, td { border: 1px solid #999 !important; font-size: 9px !important; padding: 3px !important; }
+            tbody tr { display: none; }
+            tbody tr.has-qty { display: table-row !important; }
+            input, textarea { display: none !important; }
+            .print-text { display: block !important; }
+        }
+
+        .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 15px; border-top: 2px solid #eee; padding-top: 15px; }
+        .btn { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .btn-csv { background: var(--green); color: white; }
+        .btn-pdf { background: #555; color: white; }
+        .btn-clear { background: #fff; color: var(--red); border: 1px solid var(--red); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-top">
+        <div>
+            <h2 style="margin:0; color:var(--blue);">🚲 NEK - Orçamento de Pedido</h2>
+            <div id="syncStatus" class="status-sync sync-loading">⏳ Sincronizando com Google Sheets...</div>
+        </div>
+        <div id="data-atual" style="font-weight: bold;"></div>
+    </div>
+
+    <div class="cliente-grid">
+        <div><label>Razão Social</label><input type="text" id="razaoSocial"><span class="print-text" id="p-razao"></span></div>
+        <div><label>Nome do Contato</label><input type="text" id="nomeContato"><span class="print-text" id="p-contato"></span></div>
+        <div><label>Telefone / Celular</label><input type="text" id="telefone" placeholder="(00) 00000-0000" maxlength="15"><span class="print-text" id="p-tel"></span></div>
+        <div class="full-width"><label>Endereço de Entrega</label><input type="text" id="endereco"><span class="print-text" id="p-end"></span></div>
+        <div><label>CNPJ</label><input type="text" id="cnpj" maxlength="18"><span class="print-text" id="p-cnpj"></span></div>
+        <div class="total-header-box" style="grid-column: span 2;">
+            <div class="total-header-label">Total Geral c/ IPI</div>
+            <div class="total-header-value" id="headerTotalGeral">R$ 0,000</div>
+        </div>
+    </div>
+
+    <div class="box-search">
+        <div style="flex-grow: 1;"><label>Pesquisar Produto</label><input type="text" id="inputBusca" placeholder="Código ou Descrição..." onkeyup="filtrarTabela()"></div>
+        <span>🔍</span>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+        <label>Observações</label>
+        <textarea id="obsVenda" rows="2"></textarea>
+        <span class="print-text" id="p-obs"></span>
+    </div>
+
+    <div class="table-container">
+        <table id="tabelaPecas">
+            <thead>
+                <tr>
+                    <th style="width:110px">Código</th>
+                    <th>Descrição</th>
+                    <th style="width:40px">UN</th>
+                    <th style="width:100px">Vlr S/ IPI</th>
+                    <th style="width:100px">Vlr C/ IPI</th>
+                    <th style="width:65px">Qtd</th>
+                    <th style="width:65px">D%</th>
+                    <th style="width:115px">Tot S/ IPI</th>
+                    <th style="width:115px">Tot C/ IPI</th>
+                </tr>
+            </thead>
+            <tbody id="corpoTabela">
+                <tr><td colspan="9" style="text-align:center; padding: 40px; color: #999;">Aguarde, conectando ao banco de dados...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions-footer">
+        <button class="btn btn-clear" onclick="limparPedido()">🗑️ Limpar Pedido</button>
+        <button class="btn btn-pdf" onclick="exportarPDF()">📄 Gerar PDF</button>
+        <button class="btn btn-csv" onclick="exportarCSV()">📥 Exportar CSV</button>
+    </div>
+</div>
+
+<script>
+    // URL Blindada para motor de dados Google
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Ac-l_uM-etPBQpvjBYrgCz0nV_p_jKraQHw0_pyQSYI/gviz/tq?tqx=out:csv';
+
+    document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
+
+    async function carregarDados() {
+        const statusEl = document.getElementById('syncStatus');
+        try {
+            const response = await fetch(SHEET_URL);
+            if (!response.ok) throw new Error();
+            const data = await response.text();
+            
+            const linhas = data.split(/\r?\n/);
+            const corpoTabela = document.getElementById('corpoTabela');
+            corpoTabela.innerHTML = '';
+
+            // Detecta separador do Google (pode variar por conta/região)
+            const separador = data.includes('";"') ? '";' : '",';
+
+            linhas.forEach((linha, index) => {
+                let col = linha.split(separador).map(c => c.replace(/^"|"$/g, '').trim());
+                if (index === 0 || col.length < 5) return;
+
+                const codExibicao = col[0]; // Coluna A
+                const codExport = col[1];   // Coluna B
+                const un = col[2];          // Coluna C
+                const desc = col[3];        // Coluna D
+                
+                // Função para tratar valores como "1.250,50" ou "1250.50"
+                const limparNumero = (val) => {
+                    if(!val) return 0;
+                    // Remove R$, espaços e pontos de milhar, troca vírgula por ponto
+                    let n = val.replace(/[^\d,.-]/g, '');
+                    if (n.includes(',') && n.includes('.')) n = n.replace(/\./g, '');
+                    return parseFloat(n.replace(',', '.')) || 0;
+                };
+
+                const vE = limparNumero(col[4]); // Coluna E
+                const vG = limparNumero(col[6]); // Coluna G
+
+                const tr = document.createElement('tr');
+                tr.dataset.codB = codExport;
+                tr.dataset.valE = vE;
+                tr.dataset.valG = vG;
+                tr.dataset.search = (codExibicao + codExport + desc).toLowerCase();
+                tr.innerHTML = `
+                    <td>${codExibicao} / <b>${codExport}</b></td>
+                    <td>${desc}</td>
+                    <td>${un}</td>
+                    <td>R$ ${vE.toFixed(3).replace('.',',')}</td>
+                    <td>R$ ${vG.toFixed(3).replace('.',',')}</td>
+                    <td><input type="number" class="input-qtd" value="0" min="0" oninput="atualizarLinha(this)" onfocus="this.select()"><span class="print-text">0</span></td>
+                    <td><input type="number" class="input-desc" value="0" min="0" oninput="atualizarLinha(this)" onfocus="this.select()"><span class="print-text">0%</span></td>
+                    <td style="text-align:right">R$ 0,000</td>
+                    <td style="text-align:right">R$ 0,000</td>
+                `;
+                corpoTabela.appendChild(tr);
+            });
+
+            statusEl.innerText = "✅ Tabela Sincronizada";
+            statusEl.className = "status-sync sync-success";
+
+        } catch (error) {
+            statusEl.innerText = "❌ Erro de Sincronização";
+            statusEl.className = "status-sync sync-error";
+        }
+    }
+
+    carregarDados();
+
+    function atualizarLinha(el) {
+        const tr = el.closest('tr');
+        const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
+        const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
+        tr.classList.toggle('has-qty', q > 0);
+        tr.querySelector('.input-qtd + .print-text').innerText = q;
+        tr.querySelector('.input-desc + .print-text').innerText = d + "%";
+        const subE = (parseFloat(tr.dataset.valE) * q) * (1 - (d / 100));
+        const subG = (parseFloat(tr.dataset.valG) * q) * (1 - (d / 100));
+        tr.cells[7].innerText = "R$ " + subE.toFixed(3).replace('.', ',');
+        tr.cells[8].innerText = "R$ " + subG.toFixed(3).replace('.', ',');
+        atualizarTotalGeral();
+    }
+
+    function atualizarTotalGeral() {
+        let total = 0;
+        document.querySelectorAll('tr.has-qty').forEach(tr => {
+            const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
+            const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
+            total += (parseFloat(tr.dataset.valG) * q) * (1 - (d / 100));
+        });
+        document.getElementById('headerTotalGeral').innerText = "R$ " + total.toFixed(3).replace('.', ',');
+    }
+
+    function filtrarTabela() {
+        const filtro = document.getElementById('inputBusca').value.toLowerCase();
+        document.querySelectorAll('#corpoTabela tr').forEach(tr => {
+            if(tr.dataset.search) tr.style.display = tr.dataset.search.includes(filtro) ? "" : "none";
+        });
+    }
+
+    function exportarPDF() {
+        document.getElementById('p-razao').innerText = document.getElementById('razaoSocial').value;
+        document.getElementById('p-contato').innerText = document.getElementById('nomeContato').value;
+        document.getElementById('p-tel').innerText = document.getElementById('telefone').value;
+        document.getElementById('p-cnpj').innerText = document.getElementById('cnpj').value;
+        document.getElementById('p-obs').innerText = document.getElementById('obsVenda').value;
+        window.print();
+    }
+
+    function exportarCSV() {
+        const info = { razao: document.getElementById('razaoSocial').value || "CLIENTE" };
+        let csv = "CD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
+        document.querySelectorAll('tr.has-qty').forEach(tr => {
+            const q = tr.querySelector('.input-qtd').value;
+            const d = tr.querySelector('.input-desc').value;
+            const vE_liq = parseFloat(tr.dataset.valE) * (1 - (d / 100));
+            csv += `${tr.dataset.codB};${q};${vE_liq.toFixed(3).replace('.', ',')}\n`;
+        });
+        const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `PEDIDO_${info.razao}.csv`;
+        link.click();
+    }
+
+    function limparPedido() { if(confirm("Deseja limpar os dados do cliente e quantidades?")) location.reload(); }
+</script>
+
+</body>
+</html>
