@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.27</title>
+    <title>NEK - Sistema de Pedidos v21.28</title>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); margin: 0; padding: 20px; color: #333; }
@@ -13,22 +13,25 @@
         .status-sync { font-size: 12px; padding: 5px 12px; border-radius: 20px; font-weight: bold; }
         .sync-success { background: #d4edda; color: #155724; }
         
-        .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; }
+        .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; position: relative; }
         .full-width { grid-column: span 3; }
         
-        /* Estilos de Validação do CNPJ */
-        #cnpj.valido { background-color: #d4edda !important; border: 2px solid #27ae60 !important; color: #155724; }
-        #cnpj.invalido { background-color: #f8d7da !important; border: 2px solid #e74c3c !important; color: #721c24; }
+        /* Sugestões de Clientes */
+        .autocomplete-suggestions { position: absolute; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; max-height: 200px; overflow-y: auto; width: 48%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .autocomplete-suggestion { padding: 10px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #eee; }
+        .autocomplete-suggestion:hover { background: #f0f0f0; }
+
+        #cnpj.valido { background-color: #d4edda !important; border: 2px solid #27ae60 !important; }
+        #cnpj.invalido { background-color: #f8d7da !important; border: 2px solid #e74c3c !important; }
         
         .total-header-box { background: #eafaf1; border: 2px solid var(--green); border-radius: 8px; padding: 8px; text-align: center; height: 38px; display: flex; flex-direction: column; justify-content: center; }
         .total-header-value { font-size: 20px; font-weight: 800; color: #1b5e20; }
         
         .box-search { background: var(--yellow); padding: 12px; border: 1px solid #f1c40f; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
-        
         label { display: block; font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
         input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
         
-        .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
+        .table-container { max-height: 450px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th { background: var(--blue); color: white; padding: 10px 5px; text-align: left; position: sticky; top: 0; z-index: 10; font-size: 10px; text-transform: uppercase; }
         td { padding: 6px 5px; border-bottom: 1px solid #eee; font-size: 12px; }
@@ -39,18 +42,13 @@
 
         @media print {
             @page { margin: 1cm; size: portrait; }
-            body { background: white; padding: 0; }
-            .container { box-shadow: none; border: none; width: 100%; padding: 0; }
-            .box-search, .actions-footer, .btn, .status-sync, .version-footer { display: none !important; }
+            .box-search, .actions-footer, .btn, .status-sync, .version-footer, .autocomplete-suggestions { display: none !important; }
             th:nth-child(4), td:nth-child(4), th:nth-child(8), td:nth-child(8) { display: none !important; }
-            .table-container { max-height: none !important; overflow: visible !important; border: none; }
-            table { border: 1px solid #000; width: 100% !important; }
-            th, td { border: 1px solid #ccc !important; padding: 4px !important; }
             tbody tr { display: none !important; }
             tbody tr.has-qty { display: table-row !important; }
             input, textarea { display: none !important; }
             .print-text { display: block !important; font-weight: bold; }
-            #p-obs { margin-top: 15px; border: 1px solid #ccc; padding: 10px; min-height: 50px; }
+            #p-obs { margin-top: 15px; border: 1px solid #ccc; padding: 10px; }
         }
 
         .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 15px; border-top: 2px solid #eee; padding-top: 15px; }
@@ -71,18 +69,23 @@
     </div>
 
     <div class="cliente-grid">
-        <div><label>Razão Social</label><input type="text" id="razaoSocial"><span class="print-text" id="p-razao"></span></div>
+        <div style="position: relative;">
+            <label>Razão Social (Auto-busca)</label>
+            <input type="text" id="razaoSocial" autocomplete="off">
+            <div id="sugestoes" class="autocomplete-suggestions"></div>
+            <span class="print-text" id="p-razao"></span>
+        </div>
         <div><label>Nome do Contato</label><input type="text" id="nomeContato"><span class="print-text" id="p-contato"></span></div>
         <div><label>Telefone</label><input type="text" id="telefone" maxlength="15"><span class="print-text" id="p-tel"></span></div>
         <div class="full-width"><label>Endereço de Entrega</label><input type="text" id="endereco"><span class="print-text" id="p-end"></span></div>
-        <div><label>CNPJ</label><input type="text" id="cnpj" maxlength="18" placeholder="00.000.000/0000-00"><span class="print-text" id="p-cnpj"></span></div>
+        <div><label>CNPJ</label><input type="text" id="cnpj" maxlength="18"><span class="print-text" id="p-cnpj"></span></div>
         <div class="total-header-box" style="grid-column: span 2;">
             <div class="total-header-value" id="headerTotalGeral">R$ 0,000</div>
         </div>
     </div>
 
     <div class="box-search">
-        <input type="text" id="inputBusca" placeholder="Pesquisar produto..." onkeyup="filtrarTabela()">
+        <input type="text" id="inputBusca" placeholder="Pesquisar produto...">
     </div>
 
     <div style="margin-top: 10px;">
@@ -117,82 +120,88 @@
     </div>
 
     <div class="version-footer">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.27</strong> | ÚLTIMA ATUALIZAÇÃO: 16/01/2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.28</strong> | ÚLTIMA ATUALIZAÇÃO: 20/01/2026
     </div>
 </div>
 
 <script>
-    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Ac-l_uM-etPBQpvjBYrgCz0nV_p_jKraQHw0_pyQSYI/gviz/tq?tqx=out:csv';
+    const SHEET_PRODUTOS = 'https://docs.google.com/spreadsheets/d/1Ac-l_uM-etPBQpvjBYrgCz0nV_p_jKraQHw0_pyQSYI/gviz/tq?tqx=out:csv';
+    const SHEET_CLIENTES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSVkotv80EEqv7zBDagoFCeA5ble_gfRa8woCs9bNStZWXLemYOV0jelM5kSSLSYJ61_PqLxvtp-jAo/pub?output=tsv';
+    
+    let listaClientes = [];
+
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
-    // MÁSCARA TELEFONE
+    // MÁSCARAS E VALIDAÇÕES
+    function aplicarMascaraCNPJ(v) {
+        return v.replace(/\D/g, "").substring(0,14)
+                .replace(/^(\d{2})(\d)/, "$1.$2")
+                .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+                .replace(/\.(\d{3})(\d)/, ".$1/$2")
+                .replace(/(\d{4})(\d)/, "$1-$2");
+    }
+
     document.getElementById('telefone').addEventListener('input', e => {
         let v = e.target.value.replace(/\D/g, "");
-        v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
-        v = v.replace(/(\d)(\d{4})$/, "$1-$2");
+        v = v.replace(/^(\d{2})(\d)/g, "($1) $2").replace(/(\d)(\d{4})$/, "$1-$2");
         e.target.value = v;
     });
 
-    // VALIDAÇÃO MATEMÁTICA CNPJ
-    function validarCNPJ(cnpj) {
-        cnpj = cnpj.replace(/[^\d]+/g, '');
-        if (cnpj == '' || cnpj.length != 14 || /^(\d)\1{13}$/.test(cnpj)) return false;
-        let tamanho = cnpj.length - 2;
-        let numeros = cnpj.substring(0, tamanho);
-        let digitos = cnpj.substring(tamanho);
-        let soma = 0;
-        let pos = tamanho - 7;
-        for (let i = tamanho; i >= 1; i--) {
-            soma += numeros.charAt(tamanho - i) * pos--;
-            if (pos < 2) pos = 9;
-        }
-        let resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
-        if (resultado != digitos.charAt(0)) return false;
-        tamanho = tamanho + 1;
-        numeros = cnpj.substring(0, tamanho);
-        soma = 0;
-        pos = tamanho - 7;
-        for (let i = tamanho; i >= 1; i--) {
-            soma += numeros.charAt(tamanho - i) * pos--;
-            if (pos < 2) pos = 9;
-        }
-        resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
-        if (resultado != digitos.charAt(1)) return false;
-        return true;
+    // CARREGAR CLIENTES (BANCO DE DADOS PRÓPRIO)
+    async function carregarClientes() {
+        try {
+            const r = await fetch(SHEET_CLIENTES);
+            const txt = await r.text();
+            const linhas = txt.split(/\r?\n/);
+            linhas.forEach((linha, i) => {
+                if(i === 0) return;
+                const c = linha.split('\t'); // TSV usa Tab
+                if(c.length >= 5) {
+                    listaClientes.push({
+                        razao: c[0],
+                        cidade: c[1],
+                        endereco: c[2],
+                        telefone: c[3],
+                        cnpj: c[4]
+                    });
+                }
+            });
+        } catch(e) { console.error("Erro ao carregar clientes", e); }
     }
 
-    // EVENTO CNPJ
-    document.getElementById('cnpj').addEventListener('input', async e => {
-        let v = e.target.value.replace(/\D/g, "").substring(0,14);
-        let formatado = v.replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d)/, "$1-$2");
-        e.target.value = formatado;
+    // LÓGICA DE AUTOCOMPLETE RAZÃO SOCIAL
+    const inputRazao = document.getElementById('razaoSocial');
+    const divSugestoes = document.getElementById('sugestoes');
 
-        if(v.length === 14) {
-            if(validarCNPJ(v)) {
-                e.target.className = 'valido';
-                // Tenta consultar endereço
-                try {
-                    const res = await fetch(`https://publica.cnpj.ws/cnpj/${v}`);
-                    if(res.ok) {
-                        const d = await res.json();
-                        document.getElementById('razaoSocial').value = d.razao_social || "";
-                        if(d.estabelecimento) {
-                            const est = d.estabelecimento;
-                            document.getElementById('endereco').value = `${est.logradouro}, ${est.numero} - ${est.bairro} - ${est.cidade.nome}/${est.estado.sigla}`;
-                        }
-                    }
-                } catch(err) { console.log("Erro na API, mas CNPJ é válido."); }
-            } else {
-                e.target.className = 'invalido';
-            }
-        } else {
-            e.target.className = '';
-        }
+    inputRazao.addEventListener('input', () => {
+        const busca = inputRazao.value.toLowerCase();
+        divSugestoes.innerHTML = '';
+        if(busca.length < 2) return;
+
+        const filtrados = listaClientes.filter(cli => cli.razao.toLowerCase().includes(busca)).slice(0, 5);
+        
+        filtrados.forEach(cli => {
+            const item = document.createElement('div');
+            item.className = 'autocomplete-suggestion';
+            item.innerText = cli.razao + " (" + cli.cidade + ")";
+            item.onclick = () => {
+                inputRazao.value = cli.razao;
+                document.getElementById('endereco').value = cli.endereco + " - " + cli.cidade;
+                document.getElementById('telefone').value = cli.telefone;
+                document.getElementById('cnpj').value = aplicarMascaraCNPJ(cli.cnpj);
+                document.getElementById('cnpj').classList.add('valido');
+                divSugestoes.innerHTML = '';
+            };
+            divSugestoes.appendChild(item);
+        });
     });
 
-    async function carregar() {
+    document.addEventListener('click', (e) => { if(e.target !== inputRazao) divSugestoes.innerHTML = ''; });
+
+    // CARREGAR PRODUTOS
+    async function carregarProdutos() {
         try {
-            const r = await fetch(SHEET_URL);
+            const r = await fetch(SHEET_PRODUTOS);
             const txt = await r.text();
             const linhas = txt.split(/\r?\n/);
             const tb = document.getElementById('corpoTabela');
@@ -229,14 +238,11 @@
         const tr = el.closest('tr');
         const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
         const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
-        if (q > 0) tr.classList.add('has-qty');
-        else tr.classList.remove('has-qty');
+        if (q > 0) tr.classList.add('has-qty'); else tr.classList.remove('has-qty');
         tr.querySelector('.input-qtd + .print-text').innerText = q;
         tr.querySelector('.input-desc + .print-text').innerText = d + "%";
-        const vE = parseFloat(tr.dataset.valE);
-        const vG = parseFloat(tr.dataset.valG);
-        const subE = (vE * q) * (1 - (d/100));
-        const subG = (vG * q) * (1 - (d/100));
+        const vE = parseFloat(tr.dataset.valE); const vG = parseFloat(tr.dataset.valG);
+        const subE = (vE * q) * (1 - (d/100)); const subG = (vG * q) * (1 - (d/100));
         tr.cells[7].innerText = "R$ " + subE.toFixed(3).replace('.',',');
         tr.cells[8].innerText = "R$ " + subG.toFixed(3).replace('.',',');
         let tot = 0;
@@ -248,12 +254,12 @@
         document.getElementById('headerTotalGeral').innerText = "R$ " + tot.toFixed(3).replace('.',',');
     }
 
-    function filtrarTabela() {
-        const f = document.getElementById('inputBusca').value.toLowerCase();
+    document.getElementById('inputBusca').onkeyup = function() {
+        const f = this.value.toLowerCase();
         document.querySelectorAll('#corpoTabela tr').forEach(tr => {
             tr.style.display = tr.dataset.search.includes(f) ? "" : "none";
         });
-    }
+    };
 
     function exportarPDF() {
         const ids = ['razaoSocial','nomeContato','telefone','endereco','cnpj', 'obsVenda'];
@@ -266,11 +272,7 @@
 
     function exportarCSV() {
         const r = document.getElementById('razaoSocial').value || "CLIENTE";
-        const c = document.getElementById('cnpj').value || "";
-        const n = document.getElementById('nomeContato').value || "";
-        const t = document.getElementById('telefone').value || "";
-        const o = document.getElementById('obsVenda').value.replace(/;/g, ",").replace(/\n/g, " ");
-        let csv = "RAZAO SOCIAL;CNPJ;CONTATO;TELEFONE;OBS\n" + r + ";" + c + ";" + n + ";" + t + ";" + o + "\n\nCD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
+        let csv = "RAZAO SOCIAL;CNPJ;CONTATO;TELEFONE;OBS\n" + r + ";" + document.getElementById('cnpj').value + ";" + document.getElementById('nomeContato').value + ";" + document.getElementById('telefone').value + ";" + document.getElementById('obsVenda').value.replace(/;/g, ",") + "\n\nCD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
@@ -284,7 +286,8 @@
         link.click();
     }
 
-    carregar();
+    carregarClientes();
+    carregarProdutos();
 </script>
 </body>
 </html>
