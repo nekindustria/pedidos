@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.29</title>
+    <title>NEK - Sistema de Pedidos v21.30</title>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); margin: 0; padding: 20px; color: #333; }
@@ -32,21 +32,49 @@
         input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
         
         .table-container { max-height: 450px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th { background: var(--blue); color: white; padding: 10px 5px; text-align: left; position: sticky; top: 0; z-index: 10; font-size: 10px; text-transform: uppercase; }
-        td { padding: 6px 5px; border-bottom: 1px solid #eee; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: var(--blue); color: white; padding: 8px 4px; text-align: left; position: sticky; top: 0; z-index: 10; font-size: 10px; text-transform: uppercase; }
+        td { padding: 6px 4px; border-bottom: 1px solid #eee; font-size: 12px; }
+
+        /* Ajuste de Larguras de Coluna */
+        .col-cod { width: 90px; }
+        .col-desc { width: auto; } /* Expande */
+        .col-un { width: 35px; text-align: center; }
+        .col-vlr { width: 95px; text-align: right; }
+        .col-qtd { width: 60px; text-align: center; }
+        .col-desc-p { width: 50px; text-align: center; }
+        .col-tot { width: 105px; text-align: right; }
 
         .input-qtd, .input-desc { width: 100%; font-weight: bold; text-align: center; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; }
         .print-text { display: none; }
         .version-footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
 
         @media print {
-            .box-search, .actions-footer, .btn, .status-sync, .version-footer, .autocomplete-suggestions { display: none !important; }
+            @page { margin: 1cm; size: portrait; }
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; border: none; width: 100%; padding: 0; }
+            .box-search, .actions-footer, .btn, .status-sync, .version-footer, .autocomplete-suggestions, #cnpjBusca { display: none !important; }
+            
+            /* Remove colunas de IPI na impressão para focar no total geral solicitado */
             th:nth-child(4), td:nth-child(4), th:nth-child(8), td:nth-child(8) { display: none !important; }
+            
+            .table-container { max-height: none !important; overflow: visible !important; border: none; }
+            table { border: 1px solid #000; width: 100% !important; table-layout: fixed; }
+            th, td { border: 1px solid #ccc !important; padding: 3px !important; font-size: 10px !important; }
+            
+            /* Força a descrição a ocupar o máximo */
+            .col-cod { width: 65px !important; }
+            .col-un { width: 25px !important; }
+            .col-vlr { width: 80px !important; }
+            .col-qtd { width: 40px !important; }
+            .col-desc-p { width: 35px !important; }
+            .col-tot { width: 90px !important; }
+            
             tbody tr { display: none !important; }
             tbody tr.has-qty { display: table-row !important; }
             input, textarea { display: none !important; }
-            .print-text { display: block !important; font-weight: bold; }
+            .print-text { display: block !important; font-weight: bold; word-wrap: break-word; }
+            #p-obs { margin-top: 15px; border: 1px solid #ccc; padding: 10px; min-height: 40px; }
         }
 
         .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 15px; border-top: 2px solid #eee; padding-top: 15px; }
@@ -69,13 +97,13 @@
     <div class="cliente-grid">
         <div style="grid-column: span 2; position: relative;">
             <label>Razão Social (Busca Interna)</label>
-            <input type="text" id="razaoSocial" autocomplete="off" placeholder="Digite o nome do cliente cadastrado...">
+            <input type="text" id="razaoSocial" autocomplete="off" placeholder="Digite o nome do cliente...">
             <div id="sugestoes" class="autocomplete-suggestions"></div>
             <span class="print-text" id="p-razao"></span>
         </div>
         <div>
             <label>CNPJ Cadastrado</label>
-            <input type="text" id="cnpjCadastrado" readonly placeholder="Preenchimento Automático">
+            <input type="text" id="cnpjCadastrado" readonly placeholder="...">
             <span class="print-text" id="p-cnpj-cad"></span>
         </div>
         <div>
@@ -108,15 +136,15 @@
         <table>
             <thead>
                 <tr>
-                    <th style="width:110px">Código</th>
-                    <th>Descrição</th>
-                    <th style="width:40px">UN</th>
-                    <th style="width:100px">Vlr S/ IPI</th>
-                    <th style="width:100px">Vlr C/ IPI</th>
-                    <th style="width:65px">Qtd</th>
-                    <th style="width:65px">D%</th>
-                    <th style="width:115px">Tot S/ IPI</th>
-                    <th style="width:115px">Tot C/ IPI</th>
+                    <th class="col-cod">Código</th>
+                    <th class="col-desc">Descrição</th>
+                    <th class="col-un">UN</th>
+                    <th class="col-vlr">Vlr S/ IPI</th>
+                    <th class="col-vlr">Vlr C/ IPI</th>
+                    <th class="col-qtd">Qtd</th>
+                    <th class="col-desc-p">D%</th>
+                    <th class="col-tot">Tot S/ IPI</th>
+                    <th class="col-tot">Tot C/ IPI</th>
                 </tr>
             </thead>
             <tbody id="corpoTabela"></tbody>
@@ -125,12 +153,12 @@
 
     <div class="actions-footer">
         <button class="btn" onclick="if(confirm('Limpar pedido?')) location.reload()">🗑️ Limpar</button>
-        <button class="btn btn-pdf" onclick="exportarPDF()">📄 Gerar PDF</button>
+        <button class="btn btn-pdf" onclick="imprimirPDF()">🖨️ Imprimir</button>
         <button class="btn btn-csv" onclick="exportarCSV()">📥 Exportar CSV</button>
     </div>
 
     <div class="version-footer">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.29</strong> | ÚLTIMA ATUALIZAÇÃO: 21/01/2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.30</strong> | ÚLTIMA ATUALIZAÇÃO: 21/01/2026
     </div>
 </div>
 
@@ -159,7 +187,6 @@
         return res == dig.charAt(1);
     }
 
-    // CARREGAR CLIENTES
     async function carregarClientes() {
         try {
             const r = await fetch(SHEET_CLIENTES);
@@ -170,10 +197,9 @@
                 const c = linha.split('\t');
                 if(c.length >= 5) listaClientes.push({ razao: c[0], cidade: c[1], endereco: c[2], telefone: c[3], cnpj: c[4] });
             });
-        } catch(e) { console.error("Erro clientes", e); }
+        } catch(e) {}
     }
 
-    // LÓGICA AUTOCOMPLETE
     const inputRazao = document.getElementById('razaoSocial');
     const divSugestoes = document.getElementById('sugestoes');
 
@@ -191,7 +217,7 @@
                 document.getElementById('endereco').value = `${cli.endereco} - ${cli.cidade}`;
                 document.getElementById('telefone').value = cli.telefone;
                 document.getElementById('cnpjCadastrado').value = aplicarMascaraCNPJ(cli.cnpj);
-                document.getElementById('cnpjBusca').value = ""; // Limpa campo de busca externa
+                document.getElementById('cnpjBusca').value = "";
                 document.getElementById('cnpjBusca').className = "";
                 divSugestoes.innerHTML = '';
             };
@@ -199,7 +225,6 @@
         });
     });
 
-    // LÓGICA CONSULTA CNPJ NOVO
     document.getElementById('cnpjBusca').addEventListener('input', async e => {
         let v = e.target.value.replace(/\D/g, "");
         e.target.value = aplicarMascaraCNPJ(v);
@@ -211,7 +236,7 @@
                     if(res.ok) {
                         const d = await res.json();
                         document.getElementById('razaoSocial').value = d.razao_social || "";
-                        document.getElementById('cnpjCadastrado').value = ""; // Limpa campo fixo se for busca nova
+                        document.getElementById('cnpjCadastrado').value = "";
                         if(d.estabelecimento) {
                             const est = d.estabelecimento;
                             document.getElementById('endereco').value = `${est.logradouro}, ${est.numero} - ${est.bairro} - ${est.cidade.nome}/${est.estado.sigla}`;
@@ -228,7 +253,6 @@
         e.target.value = v;
     });
 
-    // PRODUTOS E CÁLCULOS (MANTIDOS)
     async function carregarProdutos() {
         try {
             const r = await fetch(SHEET_PRODUTOS);
@@ -250,11 +274,11 @@
                 const tr = document.createElement('tr');
                 tr.dataset.valE = vE; tr.dataset.valG = vG; tr.dataset.codB = c[1];
                 tr.dataset.search = (c[0]+c[1]+c[3]).toLowerCase();
-                tr.innerHTML = `<td>${c[0]}/${c[1]}</td><td>${c[3]}</td><td>${c[2]}</td>
-                    <td>R$ ${vE.toFixed(3).replace('.',',')}</td><td>R$ ${vG.toFixed(3).replace('.',',')}</td>
-                    <td><input type="number" class="input-qtd" value="0" oninput="atu(this)" onfocus="this.select()"><span class="print-text">0</span></td>
-                    <td><input type="number" class="input-desc" value="0" oninput="atu(this)" onfocus="this.select()"><span class="print-text">0%</span></td>
-                    <td style="text-align:right">R$ 0,000</td><td style="text-align:right">R$ 0,000</td>`;
+                tr.innerHTML = `<td class="col-cod">${c[0]}/${c[1]}</td><td class="col-desc">${c[3]}</td><td class="col-un">${c[2]}</td>
+                    <td class="col-vlr">R$ ${vE.toFixed(3).replace('.',',')}</td><td class="col-vlr">R$ ${vG.toFixed(3).replace('.',',')}</td>
+                    <td class="col-qtd"><input type="number" class="input-qtd" value="0" oninput="atu(this)" onfocus="this.select()"><span class="print-text">0</span></td>
+                    <td class="col-desc-p"><input type="number" class="input-desc" value="0" oninput="atu(this)" onfocus="this.select()"><span class="print-text">0%</span></td>
+                    <td class="col-tot" style="text-align:right">R$ 0,000</td><td class="col-tot" style="text-align:right">R$ 0,000</td>`;
                 tb.appendChild(tr);
             });
             document.getElementById('syncStatus').innerText = "✅ Sincronizado";
@@ -289,7 +313,7 @@
         });
     };
 
-    function exportarPDF() {
+    function imprimirPDF() {
         const ids = ['razaoSocial','nomeContato','telefone','endereco','cnpjCadastrado','obsVenda'];
         ids.forEach(id => {
             let pId = id === 'razaoSocial' ? 'p-razao' : (id === 'nomeContato' ? 'p-contato' : (id === 'telefone' ? 'p-tel' : (id === 'endereco' ? 'p-end' : (id === 'cnpjCadastrado' ? 'p-cnpj-cad' : 'p-obs'))));
