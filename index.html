@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.28</title>
+    <title>NEK - Sistema de Pedidos v21.29</title>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); margin: 0; padding: 20px; color: #333; }
@@ -13,23 +13,23 @@
         .status-sync { font-size: 12px; padding: 5px 12px; border-radius: 20px; font-weight: bold; }
         .sync-success { background: #d4edda; color: #155724; }
         
-        .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; position: relative; }
-        .full-width { grid-column: span 3; }
+        .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; position: relative; }
+        .full-width { grid-column: span 4; }
         
-        /* Sugestões de Clientes */
-        .autocomplete-suggestions { position: absolute; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; max-height: 200px; overflow-y: auto; width: 48%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .autocomplete-suggestions { position: absolute; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; max-height: 200px; overflow-y: auto; width: 38%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .autocomplete-suggestion { padding: 10px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #eee; }
         .autocomplete-suggestion:hover { background: #f0f0f0; }
 
-        #cnpj.valido { background-color: #d4edda !important; border: 2px solid #27ae60 !important; }
-        #cnpj.invalido { background-color: #f8d7da !important; border: 2px solid #e74c3c !important; }
+        input[readonly] { background-color: #e9ecef; cursor: not-allowed; border: 1px solid #ced4da; color: #495057; }
+        #cnpjBusca.valido { background-color: #d4edda !important; border: 2px solid #27ae60 !important; }
+        #cnpjBusca.invalido { background-color: #f8d7da !important; border: 2px solid #e74c3c !important; }
         
         .total-header-box { background: #eafaf1; border: 2px solid var(--green); border-radius: 8px; padding: 8px; text-align: center; height: 38px; display: flex; flex-direction: column; justify-content: center; }
         .total-header-value { font-size: 20px; font-weight: 800; color: #1b5e20; }
         
         .box-search { background: var(--yellow); padding: 12px; border: 1px solid #f1c40f; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
-        label { display: block; font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
-        input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        label { display: block; font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
+        input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
         
         .table-container { max-height: 450px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -41,14 +41,12 @@
         .version-footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
 
         @media print {
-            @page { margin: 1cm; size: portrait; }
             .box-search, .actions-footer, .btn, .status-sync, .version-footer, .autocomplete-suggestions { display: none !important; }
             th:nth-child(4), td:nth-child(4), th:nth-child(8), td:nth-child(8) { display: none !important; }
             tbody tr { display: none !important; }
             tbody tr.has-qty { display: table-row !important; }
             input, textarea { display: none !important; }
             .print-text { display: block !important; font-weight: bold; }
-            #p-obs { margin-top: 15px; border: 1px solid #ccc; padding: 10px; }
         }
 
         .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 15px; border-top: 2px solid #eee; padding-top: 15px; }
@@ -69,18 +67,30 @@
     </div>
 
     <div class="cliente-grid">
-        <div style="position: relative;">
-            <label>Razão Social (Auto-busca)</label>
-            <input type="text" id="razaoSocial" autocomplete="off">
+        <div style="grid-column: span 2; position: relative;">
+            <label>Razão Social (Busca Interna)</label>
+            <input type="text" id="razaoSocial" autocomplete="off" placeholder="Digite o nome do cliente cadastrado...">
             <div id="sugestoes" class="autocomplete-suggestions"></div>
             <span class="print-text" id="p-razao"></span>
         </div>
+        <div>
+            <label>CNPJ Cadastrado</label>
+            <input type="text" id="cnpjCadastrado" readonly placeholder="Preenchimento Automático">
+            <span class="print-text" id="p-cnpj-cad"></span>
+        </div>
+        <div>
+            <label>Consulta CNPJ (Novo)</label>
+            <input type="text" id="cnpjBusca" maxlength="18" placeholder="00.000.000/0000-00">
+        </div>
+
+        <div style="grid-column: span 2;"><label>Endereço de Entrega</label><input type="text" id="endereco"><span class="print-text" id="p-end"></span></div>
         <div><label>Nome do Contato</label><input type="text" id="nomeContato"><span class="print-text" id="p-contato"></span></div>
         <div><label>Telefone</label><input type="text" id="telefone" maxlength="15"><span class="print-text" id="p-tel"></span></div>
-        <div class="full-width"><label>Endereço de Entrega</label><input type="text" id="endereco"><span class="print-text" id="p-end"></span></div>
-        <div><label>CNPJ</label><input type="text" id="cnpj" maxlength="18"><span class="print-text" id="p-cnpj"></span></div>
-        <div class="total-header-box" style="grid-column: span 2;">
-            <div class="total-header-value" id="headerTotalGeral">R$ 0,000</div>
+        
+        <div class="full-width">
+            <div class="total-header-box">
+                <div class="total-header-value" id="headerTotalGeral">R$ 0,000</div>
+            </div>
         </div>
     </div>
 
@@ -120,7 +130,7 @@
     </div>
 
     <div class="version-footer">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.28</strong> | ÚLTIMA ATUALIZAÇÃO: 20/01/2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.29</strong> | ÚLTIMA ATUALIZAÇÃO: 21/01/2026
     </div>
 </div>
 
@@ -129,25 +139,27 @@
     const SHEET_CLIENTES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSVkotv80EEqv7zBDagoFCeA5ble_gfRa8woCs9bNStZWXLemYOV0jelM5kSSLSYJ61_PqLxvtp-jAo/pub?output=tsv';
     
     let listaClientes = [];
-
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
-    // MÁSCARAS E VALIDAÇÕES
     function aplicarMascaraCNPJ(v) {
-        return v.replace(/\D/g, "").substring(0,14)
-                .replace(/^(\d{2})(\d)/, "$1.$2")
-                .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
-                .replace(/\.(\d{3})(\d)/, ".$1/$2")
-                .replace(/(\d{4})(\d)/, "$1-$2");
+        v = v.replace(/\D/g, "").substring(0,14);
+        return v.replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d)/, "$1-$2");
     }
 
-    document.getElementById('telefone').addEventListener('input', e => {
-        let v = e.target.value.replace(/\D/g, "");
-        v = v.replace(/^(\d{2})(\d)/g, "($1) $2").replace(/(\d)(\d{4})$/, "$1-$2");
-        e.target.value = v;
-    });
+    function validarCNPJ(cnpj) {
+        cnpj = cnpj.replace(/[^\d]+/g, '');
+        if (cnpj == '' || cnpj.length != 14 || /^(\d)\1{13}$/.test(cnpj)) return false;
+        let tam = cnpj.length - 2; let num = cnpj.substring(0, tam); let dig = cnpj.substring(tam); let soma = 0; let pos = tam - 7;
+        for (let i = tam; i >= 1; i--) { soma += num.charAt(tam - i) * pos--; if (pos < 2) pos = 9; }
+        let res = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+        if (res != dig.charAt(0)) return false;
+        tam = tam + 1; num = cnpj.substring(0, tam); soma = 0; pos = tam - 7;
+        for (let i = tam; i >= 1; i--) { soma += num.charAt(tam - i) * pos--; if (pos < 2) pos = 9; }
+        res = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+        return res == dig.charAt(1);
+    }
 
-    // CARREGAR CLIENTES (BANCO DE DADOS PRÓPRIO)
+    // CARREGAR CLIENTES
     async function carregarClientes() {
         try {
             const r = await fetch(SHEET_CLIENTES);
@@ -155,21 +167,13 @@
             const linhas = txt.split(/\r?\n/);
             linhas.forEach((linha, i) => {
                 if(i === 0) return;
-                const c = linha.split('\t'); // TSV usa Tab
-                if(c.length >= 5) {
-                    listaClientes.push({
-                        razao: c[0],
-                        cidade: c[1],
-                        endereco: c[2],
-                        telefone: c[3],
-                        cnpj: c[4]
-                    });
-                }
+                const c = linha.split('\t');
+                if(c.length >= 5) listaClientes.push({ razao: c[0], cidade: c[1], endereco: c[2], telefone: c[3], cnpj: c[4] });
             });
-        } catch(e) { console.error("Erro ao carregar clientes", e); }
+        } catch(e) { console.error("Erro clientes", e); }
     }
 
-    // LÓGICA DE AUTOCOMPLETE RAZÃO SOCIAL
+    // LÓGICA AUTOCOMPLETE
     const inputRazao = document.getElementById('razaoSocial');
     const divSugestoes = document.getElementById('sugestoes');
 
@@ -177,28 +181,54 @@
         const busca = inputRazao.value.toLowerCase();
         divSugestoes.innerHTML = '';
         if(busca.length < 2) return;
-
-        const filtrados = listaClientes.filter(cli => cli.razao.toLowerCase().includes(busca)).slice(0, 5);
-        
+        const filtrados = listaClientes.filter(cli => cli.razao.toLowerCase().includes(busca)).slice(0, 8);
         filtrados.forEach(cli => {
             const item = document.createElement('div');
             item.className = 'autocomplete-suggestion';
-            item.innerText = cli.razao + " (" + cli.cidade + ")";
+            item.innerText = `${cli.razao} (${cli.cidade})`;
             item.onclick = () => {
                 inputRazao.value = cli.razao;
-                document.getElementById('endereco').value = cli.endereco + " - " + cli.cidade;
+                document.getElementById('endereco').value = `${cli.endereco} - ${cli.cidade}`;
                 document.getElementById('telefone').value = cli.telefone;
-                document.getElementById('cnpj').value = aplicarMascaraCNPJ(cli.cnpj);
-                document.getElementById('cnpj').classList.add('valido');
+                document.getElementById('cnpjCadastrado').value = aplicarMascaraCNPJ(cli.cnpj);
+                document.getElementById('cnpjBusca').value = ""; // Limpa campo de busca externa
+                document.getElementById('cnpjBusca').className = "";
                 divSugestoes.innerHTML = '';
             };
             divSugestoes.appendChild(item);
         });
     });
 
-    document.addEventListener('click', (e) => { if(e.target !== inputRazao) divSugestoes.innerHTML = ''; });
+    // LÓGICA CONSULTA CNPJ NOVO
+    document.getElementById('cnpjBusca').addEventListener('input', async e => {
+        let v = e.target.value.replace(/\D/g, "");
+        e.target.value = aplicarMascaraCNPJ(v);
+        if(v.length === 14) {
+            if(validarCNPJ(v)) {
+                e.target.className = 'valido';
+                try {
+                    const res = await fetch(`https://publica.cnpj.ws/cnpj/${v}`);
+                    if(res.ok) {
+                        const d = await res.json();
+                        document.getElementById('razaoSocial').value = d.razao_social || "";
+                        document.getElementById('cnpjCadastrado').value = ""; // Limpa campo fixo se for busca nova
+                        if(d.estabelecimento) {
+                            const est = d.estabelecimento;
+                            document.getElementById('endereco').value = `${est.logradouro}, ${est.numero} - ${est.bairro} - ${est.cidade.nome}/${est.estado.sigla}`;
+                        }
+                    }
+                } catch(err) {}
+            } else { e.target.className = 'invalido'; }
+        } else { e.target.className = ""; }
+    });
 
-    // CARREGAR PRODUTOS
+    document.getElementById('telefone').addEventListener('input', e => {
+        let v = e.target.value.replace(/\D/g, "");
+        v = v.replace(/^(\d{2})(\d)/g, "($1) $2").replace(/(\d)(\d{4})$/, "$1-$2");
+        e.target.value = v;
+    });
+
+    // PRODUTOS E CÁLCULOS (MANTIDOS)
     async function carregarProdutos() {
         try {
             const r = await fetch(SHEET_PRODUTOS);
@@ -206,7 +236,6 @@
             const linhas = txt.split(/\r?\n/);
             const tb = document.getElementById('corpoTabela');
             const sep = txt.includes('";"') ? '";' : '",';
-
             const limparNum = (v) => {
                 if(!v) return 0;
                 let n = v.replace(/[^\d,.-]/g, '').trim();
@@ -214,7 +243,6 @@
                 else n = n.replace(',', '.');
                 return parseFloat(n) || 0;
             };
-
             linhas.forEach((l, i) => {
                 let c = l.split(sep).map(x => x.replace(/^"|"$/g, '').trim());
                 if (i === 0 || c.length < 5) return;
@@ -262,17 +290,21 @@
     };
 
     function exportarPDF() {
-        const ids = ['razaoSocial','nomeContato','telefone','endereco','cnpj', 'obsVenda'];
+        const ids = ['razaoSocial','nomeContato','telefone','endereco','cnpjCadastrado','obsVenda'];
         ids.forEach(id => {
-            const pId = id === 'razaoSocial' ? 'p-razao' : (id === 'nomeContato' ? 'p-contato' : (id === 'telefone' ? 'p-tel' : (id === 'endereco' ? 'p-end' : (id === 'cnpj' ? 'p-cnpj' : 'p-obs'))));
-            document.getElementById(pId).innerText = document.getElementById(id).value;
+            let pId = id === 'razaoSocial' ? 'p-razao' : (id === 'nomeContato' ? 'p-contato' : (id === 'telefone' ? 'p-tel' : (id === 'endereco' ? 'p-end' : (id === 'cnpjCadastrado' ? 'p-cnpj-cad' : 'p-obs'))));
+            let val = document.getElementById(id).value;
+            if(id === 'cnpjCadastrado' && val === "") val = document.getElementById('cnpjBusca').value;
+            document.getElementById(pId).innerText = val;
         });
         window.print();
     }
 
     function exportarCSV() {
         const r = document.getElementById('razaoSocial').value || "CLIENTE";
-        let csv = "RAZAO SOCIAL;CNPJ;CONTATO;TELEFONE;OBS\n" + r + ";" + document.getElementById('cnpj').value + ";" + document.getElementById('nomeContato').value + ";" + document.getElementById('telefone').value + ";" + document.getElementById('obsVenda').value.replace(/;/g, ",") + "\n\nCD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
+        let c = document.getElementById('cnpjCadastrado').value;
+        if(c === "") c = document.getElementById('cnpjBusca').value;
+        let csv = "RAZAO SOCIAL;CNPJ;CONTATO;TELEFONE;OBS\n" + r + ";" + c + ";" + document.getElementById('nomeContato').value + ";" + document.getElementById('telefone').value + ";" + document.getElementById('obsVenda').value.replace(/;/g, ",") + "\n\nCD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
@@ -286,6 +318,7 @@
         link.click();
     }
 
+    document.addEventListener('click', (e) => { if(e.target !== inputRazao) divSugestoes.innerHTML = ''; });
     carregarClientes();
     carregarProdutos();
 </script>
