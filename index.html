@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.36</title>
+    <title>NEK - Sistema de Pedidos v21.37</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; }
@@ -32,6 +32,7 @@
         label { display: block; font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
         input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
         
+        /* Container com scroll para tela */
         .table-container { max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; }
         th { background: var(--blue); color: white; padding: 8px 4px; text-align: left; position: sticky; top: 0; z-index: 10; font-size: 10px; text-transform: uppercase; }
@@ -47,27 +48,34 @@
         .input-qtd, .input-desc { width: 100%; font-weight: bold; text-align: center; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; }
         .print-text { display: none; }
 
-        /* REGRAS DE IMPRESSÃO ATUALIZADAS */
+        /* REGRAS DE IMPRESSÃO - CORREÇÃO DE LIMITE DE ITENS */
         @media print {
             @page { margin: 1cm; size: portrait; }
-            body { background: white !important; }
+            body { background: white !important; padding: 0 !important; }
+            .container { box-shadow: none !important; border: none !important; width: 100% !important; max-width: none !important; padding: 0 !important; }
             .box-search, .actions-footer, .btn, .status-sync, .version-footer, .autocomplete-suggestions, #cnpjBusca { display: none !important; }
+            
+            /* Remove o limite de altura e o scroll para a impressão */
+            .table-container { 
+                max-height: none !important; 
+                overflow: visible !important; 
+                border: none !important;
+            }
+            
             .cliente-grid { background: none; border: none; padding: 0; margin-bottom: 10px; }
-            .cliente-grid label { font-size: 8px !important; }
             .print-text { display: block !important; font-size: 10px !important; font-weight: bold; }
             
-            /* Esconde as colunas de IPI conforme versões anteriores */
             th:nth-child(4), td:nth-child(4), th:nth-child(8), td:nth-child(8) { display: none !important; }
             
-            table { border: 1px solid #000; width: 100% !important; table-layout: fixed; }
-            th, td { border: 1px solid #ccc !important; padding: 3px !important; font-size: 9px !important; }
+            table { border: 1px solid #000; width: 100% !important; table-layout: fixed; border-collapse: collapse !important; }
+            th { background: #eee !important; color: #000 !important; border: 1px solid #000 !important; position: static !important; }
+            td { border: 1px solid #000 !important; padding: 3px !important; font-size: 9px !important; }
             
-            /* REGRA DE OURO: Esconder linhas sem quantidade na impressão */
             tbody tr { display: none !important; }
             tbody tr.has-qty { display: table-row !important; }
             
             input, textarea { display: none !important; }
-            #p-obs { display: block !important; margin-top: 10px; border: 1px solid #ccc; padding: 8px; font-size: 9px !important; min-height: 30px; }
+            #p-obs { display: block !important; border: 1px solid #000; padding: 5px; font-size: 9px !important; margin-top: 10px; }
         }
 
         .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 2px solid #eee; padding-top: 15px; flex-wrap: wrap; }
@@ -154,7 +162,7 @@
     </div>
 
     <div style="text-align: center; font-size: 10px; color: #999; margin-top: 20px;">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.36</strong> | 2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.37</strong> | 2026
     </div>
 </div>
 
@@ -184,6 +192,7 @@
         return res == dig.charAt(1);
     }
 
+    // CONSULTA CNPJ
     document.getElementById('cnpjBusca').addEventListener('input', async e => {
         let v = e.target.value.replace(/\D/g, "");
         e.target.value = aplicarMascaraCNPJ(v);
@@ -204,6 +213,7 @@
         } else { e.target.className = v.length >= 14 ? 'invalido' : ''; }
     });
 
+    // CARREGAR CLIENTES
     async function carregarClientes() {
         try {
             const r = await fetch(SHEET_CLIENTES);
@@ -239,9 +249,8 @@
         });
     });
 
-    // --- LOGICA CSV (CORRIGIDA PARA COLUNAS SEPARADAS) ---
+    // EXPORTAÇÕES
     function gerarConteudoCSV() {
-        // "sep=," avisa o Excel para separar por vírgula em qualquer idioma de sistema
         let csv = "sep=,\nCD_PRODUTO,QUANTIDADE,VL_UNITARIO\n";
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
@@ -289,6 +298,7 @@
         window.print();
     }
 
+    // CARREGAR PRODUTOS
     async function carregarProdutos() {
         try {
             const r = await fetch(SHEET_PRODUTOS);
@@ -327,10 +337,8 @@
         const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
         const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
         
-        // Marca a linha para ser visível na impressão e exportação
         if (q > 0) tr.classList.add('has-qty'); else tr.classList.remove('has-qty');
         
-        // Atualiza textos de impressão dentro da linha
         tr.querySelector('.input-qtd + .print-text').innerText = q;
         tr.querySelector('.input-desc + .print-text').innerText = d + "%";
 
