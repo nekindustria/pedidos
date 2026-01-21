@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.34</title>
+    <title>NEK - Sistema de Pedidos v21.35</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; }
@@ -21,7 +21,11 @@
         .autocomplete-suggestion { padding: 10px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #eee; }
         .autocomplete-suggestion:hover { background: #f0f0f0; }
 
-        input[readonly] { background-color: #e9ecef; }
+        input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
+        
+        /* Estilos de Validação do CNPJ */
+        #cnpjBusca.valido { background-color: #d4edda !important; border: 2px solid #27ae60 !important; }
+        #cnpjBusca.invalido { background-color: #f8d7da !important; border: 2px solid #e74c3c !important; }
         
         .total-header-box { background: #eafaf1; border: 2px solid var(--green); border-radius: 8px; padding: 8px; text-align: center; height: 38px; display: flex; flex-direction: column; justify-content: center; }
         .total-header-value { font-size: 20px; font-weight: 800; color: #1b5e20; }
@@ -146,7 +150,7 @@
     </div>
 
     <div style="text-align: center; font-size: 10px; color: #999; margin-top: 20px;">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.34</strong> | 2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.35</strong> | 2026
     </div>
 </div>
 
@@ -157,10 +161,50 @@
     let listaClientes = [];
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
-    const getCnpjFinal = () => document.getElementById('cnpjCadastrado').value || document.getElementById('cnpjBusca').value;
-    const getRazaoFinal = () => document.getElementById('razaoSocial').value || "CLIENTE_AVULSO";
+    // --- FUNÇÕES DE VALIDAÇÃO E MÁSCARA ---
+    function aplicarMascaraCNPJ(v) {
+        v = v.replace(/\D/g, "").substring(0,14);
+        return v.replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d)/, "$1-$2");
+    }
 
-    // CARREGAR DADOS
+    function validarCNPJ(cnpj) {
+        cnpj = cnpj.replace(/[^\d]+/g, '');
+        if (cnpj == '' || cnpj.length != 14 || /^(\d)\1{13}$/.test(cnpj)) return false;
+        let tam = cnpj.length - 2; let num = cnpj.substring(0, tam); let dig = cnpj.substring(tam); let soma = 0; let pos = tam - 7;
+        for (let i = tam; i >= 1; i--) { soma += num.charAt(tam - i) * pos--; if (pos < 2) pos = 9; }
+        let res = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+        if (res != dig.charAt(0)) return false;
+        tam = tam + 1; num = cnpj.substring(0, tam); soma = 0; pos = tam - 7;
+        for (let i = tam; i >= 1; i--) { soma += num.charAt(tam - i) * pos--; if (pos < 2) pos = 9; }
+        res = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+        return res == dig.charAt(1);
+    }
+
+    // --- CONSULTA CNPJ EXTERNO ---
+    document.getElementById('cnpjBusca').addEventListener('input', async e => {
+        let v = e.target.value.replace(/\D/g, "");
+        e.target.value = aplicarMascaraCNPJ(v);
+        
+        if(v.length === 14) {
+            if(validarCNPJ(v)) {
+                e.target.className = 'valido';
+                try {
+                    const res = await fetch(`https://publica.cnpj.ws/cnpj/${v}`);
+                    if(res.ok) {
+                        const d = await res.json();
+                        document.getElementById('razaoSocial').value = d.razao_social || "";
+                        document.getElementById('cnpjCadastrado').value = ""; // Limpa o fixo
+                        if(d.estabelecimento) {
+                            const est = d.estabelecimento;
+                            document.getElementById('endereco').value = `${est.logradouro}, ${est.numero} - ${est.bairro} - ${est.cidade.nome}/${est.estado.sigla}`;
+                        }
+                    }
+                } catch(err) { console.error("Erro na consulta CNPJ"); }
+            } else { e.target.className = 'invalido'; }
+        } else { e.target.className = ""; }
+    });
+
+    // --- CARREGAMENTO DE CLIENTES INTERNOS ---
     async function carregarClientes() {
         try {
             const r = await fetch(SHEET_CLIENTES);
@@ -189,22 +233,25 @@
                 inputRazao.value = cli.razao;
                 document.getElementById('endereco').value = `${cli.endereco} - ${cli.cidade}`;
                 document.getElementById('telefone').value = cli.telefone;
-                document.getElementById('cnpjCadastrado').value = cli.cnpj;
+                document.getElementById('cnpjCadastrado').value = aplicarMascaraCNPJ(cli.cnpj);
                 document.getElementById('cnpjBusca').value = "";
+                document.getElementById('cnpjBusca').className = "";
                 divSugestoes.innerHTML = '';
             };
             divSugestoes.appendChild(item);
         });
     });
 
-    // GERA CONTEÚDO CSV (SOMENTE PRODUTOS, SEPARADO POR VÍRGULA)
+    // --- FUNÇÕES DE EXPORTAÇÃO ---
+    const getCnpjFinal = () => document.getElementById('cnpjCadastrado').value || document.getElementById('cnpjBusca').value;
+    const getRazaoFinal = () => document.getElementById('razaoSocial').value || "CLIENTE_AVULSO";
+
     function gerarConteudoCSV() {
         let csv = "CD_PRODUTO,QUANTIDADE,VL_UNITARIO\n";
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
             const vE_liq = parseFloat(tr.dataset.valE) * (1 - (d/100));
-            // Formato padrão CSV com vírgula. Valores numéricos sem o "R$"
             csv += tr.dataset.codB + "," + q + "," + vE_liq.toFixed(3) + "\n";
         });
         return "\ufeff" + csv;
@@ -226,27 +273,10 @@
         }
         const zip = new JSZip();
         const r = getRazaoFinal().replace(/\s+/g, '_');
-        
-        // CSV Limpo
         zip.file(`IMPORTAR_${r}.csv`, gerarConteudoCSV());
-        
-        // Resumo Completo com Dados do Cliente
-        let resumo = `RESUMO DO PEDIDO - NEK\n`;
-        resumo += `Data: ${new Date().toLocaleDateString('pt-BR')}\n`;
-        resumo += `Cliente: ${getRazaoFinal()}\n`;
-        resumo += `CNPJ: ${getCnpjFinal()}\n`;
-        resumo += `Contato: ${document.getElementById('nomeContato').value}\n`;
-        resumo += `Endereço: ${document.getElementById('endereco').value}\n`;
-        resumo += `Total Geral: ${document.getElementById('headerTotalGeral').innerText}\n`;
-        resumo += `Obs: ${document.getElementById('obsVenda').value}\n`;
-        resumo += `-------------------------------------------\n`;
-        resumo += `CODIGO | DESCRICAO | QTD | TOTAL\n`;
-        document.querySelectorAll('tr.has-qty').forEach(tr => {
-            resumo += `${tr.cells[0].innerText} | ${tr.cells[1].innerText} | ${tr.querySelector('.input-qtd').value} | ${tr.cells[8].innerText}\n`;
-        });
-        
+        let resumo = `RESUMO DO PEDIDO - NEK\nData: ${new Date().toLocaleDateString('pt-BR')}\nCliente: ${getRazaoFinal()}\nCNPJ: ${getCnpjFinal()}\nContato: ${document.getElementById('nomeContato').value}\nTotal: ${document.getElementById('headerTotalGeral').innerText}\nObs: ${document.getElementById('obsVenda').value}\n-------------------------------------------\n`;
+        document.querySelectorAll('tr.has-qty').forEach(tr => { resumo += `${tr.cells[0].innerText} | ${tr.cells[1].innerText} | Qtd: ${tr.querySelector('.input-qtd').value} | Tot: ${tr.cells[8].innerText}\n`; });
         zip.file(`RESUMO_CLIENTE_${r}.txt`, resumo);
-
         const content = await zip.generateAsync({type:"blob"});
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
@@ -265,7 +295,7 @@
         window.print();
     }
 
-    // CARREGAR PRODUTOS (IGUAL ANTERIOR)
+    // --- LÓGICA DE PRODUTOS ---
     async function carregarProdutos() {
         try {
             const r = await fetch(SHEET_PRODUTOS);
