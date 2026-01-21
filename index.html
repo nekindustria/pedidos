@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.33</title>
+    <title>NEK - Sistema de Pedidos v21.34</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; }
@@ -21,7 +21,7 @@
         .autocomplete-suggestion { padding: 10px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #eee; }
         .autocomplete-suggestion:hover { background: #f0f0f0; }
 
-        input[readonly] { background-color: #e9ecef; cursor: not-allowed; border: 1px solid #ced4da; color: #495057; }
+        input[readonly] { background-color: #e9ecef; }
         
         .total-header-box { background: #eafaf1; border: 2px solid var(--green); border-radius: 8px; padding: 8px; text-align: center; height: 38px; display: flex; flex-direction: column; justify-content: center; }
         .total-header-value { font-size: 20px; font-weight: 800; color: #1b5e20; }
@@ -49,6 +49,7 @@
             @page { margin: 1cm; size: portrait; }
             .box-search, .actions-footer, .btn, .status-sync, .version-footer, .autocomplete-suggestions, #cnpjBusca { display: none !important; }
             .cliente-grid { background: none; border: none; padding: 0; margin-bottom: 10px; }
+            .cliente-grid label { font-size: 8px !important; }
             .print-text { display: block !important; font-size: 10px !important; font-weight: bold; }
             th:nth-child(4), td:nth-child(4), th:nth-child(8), td:nth-child(8) { display: none !important; }
             table { border: 1px solid #000; width: 100% !important; table-layout: fixed; }
@@ -58,6 +59,7 @@
             tbody tr { display: none !important; }
             tbody tr.has-qty { display: table-row !important; }
             input, textarea { display: none !important; }
+            #p-obs { margin-top: 10px; border: 1px solid #ccc; padding: 8px; font-size: 9px !important; }
         }
 
         .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 2px solid #eee; padding-top: 15px; flex-wrap: wrap; }
@@ -144,7 +146,7 @@
     </div>
 
     <div style="text-align: center; font-size: 10px; color: #999; margin-top: 20px;">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.33</strong> | 2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.34</strong> | 2026
     </div>
 </div>
 
@@ -155,15 +157,10 @@
     let listaClientes = [];
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
-    // Funções de auxílio
     const getCnpjFinal = () => document.getElementById('cnpjCadastrado').value || document.getElementById('cnpjBusca').value;
     const getRazaoFinal = () => document.getElementById('razaoSocial').value || "CLIENTE_AVULSO";
 
-    function aplicarMascaraCNPJ(v) {
-        v = v.replace(/\D/g, "").substring(0,14);
-        return v.replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d)/, "$1-$2");
-    }
-
+    // CARREGAR DADOS
     async function carregarClientes() {
         try {
             const r = await fetch(SHEET_CLIENTES);
@@ -177,7 +174,7 @@
         } catch(e) {}
     }
 
-    // Auto-complete e Busca CNPJ (Igual anterior)
+    // AUTOCOMPLETE
     const inputRazao = document.getElementById('razaoSocial');
     const divSugestoes = document.getElementById('sugestoes');
     inputRazao.addEventListener('input', () => {
@@ -192,7 +189,7 @@
                 inputRazao.value = cli.razao;
                 document.getElementById('endereco').value = `${cli.endereco} - ${cli.cidade}`;
                 document.getElementById('telefone').value = cli.telefone;
-                document.getElementById('cnpjCadastrado').value = aplicarMascaraCNPJ(cli.cnpj);
+                document.getElementById('cnpjCadastrado').value = cli.cnpj;
                 document.getElementById('cnpjBusca').value = "";
                 divSugestoes.innerHTML = '';
             };
@@ -200,16 +197,15 @@
         });
     });
 
-    // Funções de Exportação
+    // GERA CONTEÚDO CSV (SOMENTE PRODUTOS, SEPARADO POR VÍRGULA)
     function gerarConteudoCSV() {
-        const r = getRazaoFinal();
-        const c = getCnpjFinal();
-        let csv = "RAZAO SOCIAL;CNPJ;CONTATO;TELEFONE;OBS\n" + r + ";" + c + ";" + document.getElementById('nomeContato').value + ";" + document.getElementById('telefone').value + ";" + document.getElementById('obsVenda').value.replace(/;/g, ",") + "\n\nCD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
+        let csv = "CD_PRODUTO,QUANTIDADE,VL_UNITARIO\n";
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
             const vE_liq = parseFloat(tr.dataset.valE) * (1 - (d/100));
-            csv += tr.dataset.codB + ";" + q + ";" + vE_liq.toFixed(3).replace('.',',') + "\n";
+            // Formato padrão CSV com vírgula. Valores numéricos sem o "R$"
+            csv += tr.dataset.codB + "," + q + "," + vE_liq.toFixed(3) + "\n";
         });
         return "\ufeff" + csv;
     }
@@ -228,28 +224,33 @@
             alert("Adicione produtos ao pedido primeiro!");
             return;
         }
-
         const zip = new JSZip();
         const r = getRazaoFinal().replace(/\s+/g, '_');
         
-        // 1. Adiciona o CSV
-        zip.file(`IMPORTACAO_${r}.csv`, gerarConteudoCSV());
+        // CSV Limpo
+        zip.file(`IMPORTAR_${r}.csv`, gerarConteudoCSV());
         
-        // 2. Adiciona um Resumo em TXT (Substituindo o PDF direto por enquanto)
+        // Resumo Completo com Dados do Cliente
         let resumo = `RESUMO DO PEDIDO - NEK\n`;
-        resumo += `Cliente: ${getRazaoFinal()}\nCNPJ: ${getCnpjFinal()}\n`;
+        resumo += `Data: ${new Date().toLocaleDateString('pt-BR')}\n`;
+        resumo += `Cliente: ${getRazaoFinal()}\n`;
+        resumo += `CNPJ: ${getCnpjFinal()}\n`;
+        resumo += `Contato: ${document.getElementById('nomeContato').value}\n`;
+        resumo += `Endereço: ${document.getElementById('endereco').value}\n`;
         resumo += `Total Geral: ${document.getElementById('headerTotalGeral').innerText}\n`;
+        resumo += `Obs: ${document.getElementById('obsVenda').value}\n`;
         resumo += `-------------------------------------------\n`;
+        resumo += `CODIGO | DESCRICAO | QTD | TOTAL\n`;
         document.querySelectorAll('tr.has-qty').forEach(tr => {
-            resumo += `${tr.cells[0].innerText} | ${tr.cells[1].innerText} | Qtd: ${tr.querySelector('.input-qtd').value} | Total: ${tr.cells[8].innerText}\n`;
+            resumo += `${tr.cells[0].innerText} | ${tr.cells[1].innerText} | ${tr.querySelector('.input-qtd').value} | ${tr.cells[8].innerText}\n`;
         });
-        zip.file(`RESUMO_PEDIDO_${r}.txt`, resumo);
+        
+        zip.file(`RESUMO_CLIENTE_${r}.txt`, resumo);
 
-        // Gera e baixa o ZIP
         const content = await zip.generateAsync({type:"blob"});
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
-        link.download = `PACOTE_PEDIDO_${r}.zip`;
+        link.download = `PEDIDO_COMPLETO_${r}.zip`;
         link.click();
     }
 
@@ -264,7 +265,7 @@
         window.print();
     }
 
-    // Carregamento de Produtos e Lógica de Cálculo (Mantidos das versões anteriores)
+    // CARREGAR PRODUTOS (IGUAL ANTERIOR)
     async function carregarProdutos() {
         try {
             const r = await fetch(SHEET_PRODUTOS);
