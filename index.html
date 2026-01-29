@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.42</title>
+    <title>NEK - Sistema de Pedidos v21.43</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; }
@@ -149,7 +149,7 @@
     </div>
 
     <div style="text-align: center; font-size: 10px; color: #999; margin-top: 20px;">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.42</strong> | 2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.43</strong> | 2026
     </div>
 </div>
 
@@ -256,14 +256,13 @@
     const getRazaoFinal = () => document.getElementById('razaoSocial').value || "CLIENTE_AVULSO";
 
     function gerarConteudoCSV() {
-        // --- AJUSTE: SEP=, E SUBSTITUIÇÃO DE PONTO POR VÍRGULA NO VL_UNITARIO ---
         let csv = "sep=,\nCD_PRODUTO,QUANTIDADE,VL_UNITARIO\n";
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
-            // Pega o valor sem IPI, aplica desconto e troca o ponto por vírgula
             const vE_liq = (parseFloat(tr.dataset.valE) * (1 - (d/100))).toFixed(3).replace('.', ',');
-            csv += `${tr.dataset.codB},${q},${vE_liq}\n`;
+            // --- CORREÇÃO: ASPAS NO VALOR PARA NÃO QUEBRAR COLUNA ---
+            csv += `${tr.dataset.codB},${q},"${vE_liq}"\n`;
         });
         return "\ufeff" + csv;
     }
@@ -280,8 +279,6 @@
         if (document.querySelectorAll('tr.has-qty').length === 0) return alert("Adicione produtos!");
         const zip = new JSZip();
         const r = getRazaoFinal().replace(/\s+/g, '_');
-        
-        // CSV dentro do ZIP já utiliza o novo formato com vírgula via gerarConteudoCSV()
         zip.file(`IMPORTAR_${r}.csv`, gerarConteudoCSV());
         
         let resumo = `===========================================\n`;
