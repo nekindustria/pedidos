@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.44</title>
+    <title>NEK - Sistema de Pedidos v21.45</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; }
@@ -78,7 +78,7 @@
 <div class="container">
     <div class="header-top">
         <div>
-            <h2 style="margin:0; color:var(--blue);">🚲 NEK - Sistema de Pedido</h2>
+            <h2 style="margin:0; color:var(--blue);">🚲 NEK - Orçamento de Pedido</h2>
             <div id="syncStatus" class="status-sync">⏳ Conectando...</div>
         </div>
         <div id="data-atual" style="font-weight: bold;"></div>
@@ -149,7 +149,7 @@
     </div>
 
     <div style="text-align: center; font-size: 10px; color: #999; margin-top: 20px;">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.44</strong> | 2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.45</strong> | 2026
     </div>
 </div>
 
@@ -256,17 +256,18 @@
     const getRazaoFinal = () => document.getElementById('razaoSocial').value || "CLIENTE_AVULSO";
 
     function gerarConteudoCSV() {
-        // --- ALTERAÇÕES v21.44 PARA EXPORTAÇÃO DIRETA ---
-        let csv = "CD_PRODUTO,QUANTIDADE,VL_UNITARIO\n";
+        // --- v21.45: VOLTANDO PARA PONTO-E-VÍRGULA (PADRÃO EXCEL BR) ---
+        // Isso força o Excel a separar as colunas A, B e C automaticamente.
+        let csv = "CD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
             const vE_liq = (parseFloat(tr.dataset.valE) * (1 - (d/100))).toFixed(3).replace('.', ',');
             
-            // Colocamos todos os campos entre aspas para forçar o sistema a ler a vírgula como parte do campo
-            csv += `"${tr.dataset.codB}","${q}","${vE_liq}"\n`;
+            // Usamos ponto-e-vírgula aqui
+            csv += `${tr.dataset.codB};${q};${vE_liq}\n`;
         });
-        return "\ufeff" + csv; // \ufeff é o sinalizador de BOM para o Excel ler como UTF-8
+        return "\ufeff" + csv; 
     }
 
     function exportarCSV() {
