@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.41</title>
+    <title>NEK - Sistema de Pedidos v21.42</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; }
@@ -149,19 +149,17 @@
     </div>
 
     <div style="text-align: center; font-size: 10px; color: #999; margin-top: 20px;">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.41</strong> | 2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.42</strong> | 2026
     </div>
 </div>
 
 <script>
-    // --- LINKS DE BANCO DE DADOS ATUALIZADOS ---
     const SHEET_PRODUTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRnUPgmknCzn9EeUSo3y0UfAe0FtGeTCWNZwhE9TxgdLhIQtPglMuoN-xEcWvHiQPzSqf_UQH7C88TP/pub?output=csv';
     const SHEET_CLIENTES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQYCLsgEtBzLW7931ivMquRWiwRl9twob9MOnuuQAA5MtukdGVOQPsJJiWsSlzlFZDzKpmj3nRAOoRJ/pub?output=csv';
     
     let listaClientes = [];
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
-    // Funções de utilidade
     function aplicarMascaraCNPJ(v) {
         v = v.replace(/\D/g, "").substring(0,14);
         return v.replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d)/, "$1-$2");
@@ -180,7 +178,6 @@
         return res == dig.charAt(1);
     }
 
-    // Parser CSV que respeita aspas
     function parseCSVLine(line) {
         const result = [];
         let cur = '';
@@ -197,7 +194,6 @@
         return result;
     }
 
-    // Consulta CNPJ Externo
     document.getElementById('cnpjBusca').addEventListener('input', async e => {
         let v = e.target.value.replace(/\D/g, "");
         e.target.value = aplicarMascaraCNPJ(v);
@@ -219,7 +215,6 @@
         } else { e.target.className = v.length >= 14 ? 'invalido' : ''; }
     });
 
-    // Carregar Clientes
     async function carregarClientes() {
         try {
             const r = await fetch(SHEET_CLIENTES);
@@ -235,7 +230,6 @@
         } catch(e) {}
     }
 
-    // Autocomplete Razão Social
     const inputRazao = document.getElementById('razaoSocial');
     const divSugestoes = document.getElementById('sugestoes');
     inputRazao.addEventListener('input', () => {
@@ -262,11 +256,13 @@
     const getRazaoFinal = () => document.getElementById('razaoSocial').value || "CLIENTE_AVULSO";
 
     function gerarConteudoCSV() {
+        // --- AJUSTE: SEP=, E SUBSTITUIÇÃO DE PONTO POR VÍRGULA NO VL_UNITARIO ---
         let csv = "sep=,\nCD_PRODUTO,QUANTIDADE,VL_UNITARIO\n";
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
-            const vE_liq = (parseFloat(tr.dataset.valE) * (1 - (d/100))).toFixed(3);
+            // Pega o valor sem IPI, aplica desconto e troca o ponto por vírgula
+            const vE_liq = (parseFloat(tr.dataset.valE) * (1 - (d/100))).toFixed(3).replace('.', ',');
             csv += `${tr.dataset.codB},${q},${vE_liq}\n`;
         });
         return "\ufeff" + csv;
@@ -284,6 +280,8 @@
         if (document.querySelectorAll('tr.has-qty').length === 0) return alert("Adicione produtos!");
         const zip = new JSZip();
         const r = getRazaoFinal().replace(/\s+/g, '_');
+        
+        // CSV dentro do ZIP já utiliza o novo formato com vírgula via gerarConteudoCSV()
         zip.file(`IMPORTAR_${r}.csv`, gerarConteudoCSV());
         
         let resumo = `===========================================\n`;
@@ -325,14 +323,12 @@
         window.print();
     }
 
-    // Carregar Produtos (Ajustado para o novo Banco CSV)
     async function carregarProdutos() {
         try {
             const r = await fetch(SHEET_PRODUTOS);
             const txt = await r.text();
             const linhas = txt.split(/\r?\n/);
             const tb = document.getElementById('corpoTabela');
-            
             const limparNum = (v) => {
                 if(!v) return 0;
                 let n = v.replace(/[^\d,.-]/g, '').trim();
@@ -340,18 +336,14 @@
                 else n = n.replace(',', '.');
                 return parseFloat(n) || 0;
             };
-
             linhas.forEach((l, i) => {
                 if (i === 0 || !l) return;
                 let c = parseCSVLine(l);
                 if (c.length < 5) return;
-
-                const vE = limparNum(c[4]); 
-                const vG = limparNum(c[6]);
+                const vE = limparNum(c[4]); const vG = limparNum(c[6]);
                 const tr = document.createElement('tr');
                 tr.dataset.valE = vE; tr.dataset.valG = vG; tr.dataset.codB = c[1];
                 tr.dataset.search = (c[0]+c[1]+c[3]).toLowerCase();
-                
                 tr.innerHTML = `<td class="col-cod">${c[0]}/${c[1]}</td><td class="col-desc">${c[3]}</td><td class="col-un">${c[2]}</td>
                     <td class="col-vlr">R$ ${vE.toFixed(3).replace('.',',')}</td><td class="col-vlr">R$ ${vG.toFixed(3).replace('.',',')}</td>
                     <td class="col-qtd"><input type="number" class="input-qtd" value="0" oninput="atu(this)" onfocus="this.select()"><span class="print-text">0</span></td>
@@ -361,9 +353,7 @@
             });
             document.getElementById('syncStatus').innerText = "✅ Sincronizado";
             document.getElementById('syncStatus').className = "status-sync sync-success";
-        } catch(e) {
-            document.getElementById('syncStatus').innerText = "❌ Erro ao sincronizar";
-        }
+        } catch(e) { document.getElementById('syncStatus').innerText = "❌ Erro"; }
     }
 
     function atu(el) {
@@ -398,4 +388,3 @@
 </script>
 </body>
 </html>
-
