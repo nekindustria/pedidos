@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.48</title>
+    <title>NEK - Sistema de Pedidos v21.51</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; }
@@ -13,43 +13,38 @@
         .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--blue); margin-bottom: 20px; padding-bottom: 10px; }
         .status-sync { font-size: 12px; padding: 5px 12px; border-radius: 20px; font-weight: bold; }
         .sync-success { background: #d4edda; color: #155724; }
+        .sync-error { background: #f8d7da; color: #721c24; }
         
-        .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; position: relative; }
+        .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; }
         .full-width { grid-column: span 4; }
-        
-        .autocomplete-suggestions { position: absolute; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; max-height: 200px; overflow-y: auto; width: 38%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .autocomplete-suggestion { padding: 10px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #eee; }
-        .autocomplete-suggestion:hover { background: #f0f0f0; }
-
-        input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
-        #cnpjBusca.valido { background-color: #d4edda !important; border: 2px solid #27ae60 !important; }
-        #cnpjBusca.invalido { background-color: #f8d7da !important; border: 2px solid #e74c3c !important; }
         
         .total-header-box { background: #eafaf1; border: 2px solid var(--green); border-radius: 8px; padding: 8px; text-align: center; height: 38px; display: flex; flex-direction: column; justify-content: center; }
         .total-header-value { font-size: 20px; font-weight: 800; color: #1b5e20; }
         
-        .box-search { background: var(--yellow); padding: 12px; border: 1px solid #f1c40f; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .box-search { background: var(--yellow); padding: 12px; border: 1px solid #f1c40f; border-radius: 8px; margin-bottom: 15px; }
         label { display: block; font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
         input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
         
-        .table-container { max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
+        .table-container { max-height: 450px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; }
         table { width: 100%; border-collapse: collapse; }
-        th { background: var(--blue); color: white; padding: 8px 4px; text-align: left; position: sticky; top: 0; z-index: 10; font-size: 10px; text-transform: uppercase; }
-        td { padding: 6px 4px; border-bottom: 1px solid #eee; font-size: 12px; }
+        th { background: var(--blue); color: white; padding: 10px; text-align: left; position: sticky; top: 0; z-index: 10; font-size: 11px; text-transform: uppercase; }
+        td { padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; }
 
-        .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 2px solid #eee; padding-top: 15px; flex-wrap: wrap; }
-        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 12px; transition: 0.2s; }
-        .btn:hover { opacity: 0.8; }
-        .btn-clear { background: var(--red); color: white; }
-        .btn-print { background: #555; color: white; }
+        .input-qtd, .input-desc { width: 65px; text-align: center; font-weight: bold; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; }
+        tr.has-qty { background-color: #e3f2fd; }
+
+        .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; padding-top: 15px; border-top: 2px solid #eee; }
+        .btn { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; transition: 0.3s; display: flex; align-items: center; gap: 8px; }
+        .btn-send { background: #2980b9; color: white; }
         .btn-zip { background: var(--purple); color: white; }
-        .btn-send { background: #2980b9; color: white; box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
+        .btn-clear { background: var(--red); color: white; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
 
-        .col-qtd input, .col-desc-p input { width: 100%; text-align: center; font-weight: bold; border: 1px solid var(--accent); border-radius: 4px; }
-        
         @media print {
-            .btn, .box-search, .actions-footer, .autocomplete-suggestions, #cnpjBusca, #syncStatus { display: none !important; }
-            .container { box-shadow: none; border: none; width: 100%; }
+            .btn, .box-search, .actions-footer, #syncStatus { display: none !important; }
+            .container { box-shadow: none; border: none; width: 100%; padding: 0; }
+            .table-container { max-height: none; overflow: visible; }
+            input { border: none !important; }
         }
     </style>
 </head>
@@ -58,25 +53,16 @@
 <div class="container">
     <div class="header-top">
         <div>
-            <h2 style="margin:0; color:var(--blue);">🚲 NEK - Orçamento de Pedido</h2>
-            <div id="syncStatus" class="status-sync">⏳ Conectando...</div>
+            <h2 style="margin:0; color:var(--blue);">🚲 NEK - Sistema de Pedido</h2>
+            <div id="syncStatus" class="status-sync">⏳ Sincronizando produtos...</div>
         </div>
         <div id="data-atual" style="font-weight: bold;"></div>
     </div>
 
     <div class="cliente-grid">
-        <div style="grid-column: span 2; position: relative;">
-            <label>Razão Social</label>
-            <input type="text" id="razaoSocial" autocomplete="off" placeholder="Busca interna...">
-            <div id="sugestoes" class="autocomplete-suggestions"></div>
-        </div>
-        <div><label>CNPJ</label><input type="text" id="cnpjCadastrado" readonly placeholder="..."></div>
-        <div><label>Consulta Externo</label><input type="text" id="cnpjBusca" maxlength="18" placeholder="00.000.../0001-00"></div>
-
-        <div style="grid-column: span 2;"><label>Endereço de Entrega</label><input type="text" id="endereco"></div>
-        <div><label>Nome do Contato</label><input type="text" id="nomeContato"></div>
-        <div><label>Telefone</label><input type="text" id="telefone" maxlength="15"></div>
-        
+        <div style="grid-column: span 2;"><label>Razão Social</label><input type="text" id="razaoSocial" placeholder="Nome do cliente"></div>
+        <div><label>CNPJ</label><input type="text" id="cnpj" placeholder="CNPJ"></div>
+        <div><label>Vendedor / Contato</label><input type="text" id="vendedor" placeholder="Seu nome"></div>
         <div class="full-width">
             <div class="total-header-box">
                 <div class="total-header-value" id="headerTotalGeral">R$ 0,000</div>
@@ -84,11 +70,8 @@
         </div>
     </div>
 
-    <div class="box-search"><input type="text" id="inputBusca" placeholder="Pesquisar produto por nome ou código..."></div>
-
-    <div style="margin-top: 10px;">
-        <label>Observações do Pedido</label>
-        <textarea id="obsVenda" rows="2" placeholder="Digite observações importantes aqui..."></textarea>
+    <div class="box-search">
+        <input type="text" id="inputBusca" placeholder="🔍 Pesquisar por CÓDIGO ou DESCRIÇÃO do produto...">
     </div>
 
     <div class="table-container">
@@ -100,10 +83,9 @@
                     <th>UN</th>
                     <th>Vlr S/ IPI</th>
                     <th>Vlr C/ IPI</th>
-                    <th style="width:70px">Qtd</th>
-                    <th style="width:60px">D%</th>
-                    <th style="text-align:right">Tot S/ IPI</th>
-                    <th style="text-align:right">Tot C/ IPI</th>
+                    <th>Qtd</th>
+                    <th>D%</th>
+                    <th style="text-align:right">Total C/ IPI</th>
                 </tr>
             </thead>
             <tbody id="corpoTabela"></tbody>
@@ -112,27 +94,108 @@
 
     <div class="actions-footer">
         <button class="btn btn-clear" onclick="if(confirm('Limpar pedido?')) location.reload()">🗑️ Limpar</button>
-        <button class="btn btn-print" onclick="window.print()">🖨️ Imprimir</button>
         <button class="btn btn-zip" onclick="baixarZIP()">📦 Baixar ZIP</button>
         <button class="btn btn-send" id="btnEnviarEmail" onclick="enviarParaNuvem()">📤 Enviar Pedido por E-mail</button>
-    </div>
-
-    <div style="text-align: center; font-size: 10px; color: #999; margin-top: 20px;">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.48</strong> | 2026
     </div>
 </div>
 
 <script>
+    // LINKS DE INTEGRAÇÃO
     const SHEET_PRODUTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRnUPgmknCzn9EeUSo3y0UfAe0FtGeTCWNZwhE9TxgdLhIQtPglMuoN-xEcWvHiQPzSqf_UQH7C88TP/pub?output=csv';
-    const SHEET_CLIENTES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQYCLsgEtBzLW7931ivMquRWiwRl9twob9MOnuuQAA5MtukdGVOQPsJJiWsSlzlFZDzKpmj3nRAOoRJ/pub?output=csv';
     const URL_SCRIPT_GOOGLE = 'https://script.google.com/macros/s/AKfycbw3Sgn7RVVSoZNcd9PN2mB7JW1yCicFrVsMyP2KdnstLG5y0c-o-ChhWjUeDuZoI9xY/exec';
-    
-    let listaClientes = [];
+
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
-    function getRazaoFinal() { return document.getElementById('razaoSocial').value || "CLIENTE_AVULSO"; }
-    function getCnpjFinal() { return document.getElementById('cnpjCadastrado').value || document.getElementById('cnpjBusca').value || "N/A"; }
+    // Função de limpeza de valores monetários
+    function limparValorFinanceiro(v) {
+        if (!v) return 0;
+        let n = v.toString().replace('R$', '').replace(/\s/g, '').replace(/"/g, '');
+        if (n.includes('.') && n.includes(',')) n = n.replace(/\./g, '').replace(',', '.');
+        else n = n.replace(',', '.');
+        return parseFloat(n) || 0;
+    }
 
+    // Carregamento dos Produtos
+    async function carregarProdutos() {
+        try {
+            const r = await fetch(SHEET_PRODUTOS + '?nocache=' + new Date().getTime());
+            const txt = await r.text();
+            const linhas = txt.split(/\r?\n/);
+            const tb = document.getElementById('corpoTabela');
+            tb.innerHTML = ""; 
+
+            linhas.forEach((l, i) => {
+                if (i === 0 || !l) return;
+                
+                // Regex para separar colunas respeitando vírgulas dentro de aspas
+                let c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                
+                if (c.length >= 7) {
+                    const cod = c[1] ? c[1].replace(/"/g, '').trim() : '';
+                    const desc = c[3] ? c[3].replace(/"/g, '').trim() : '';
+                    const un = c[2] ? c[2].replace(/"/g, '').trim() : '';
+                    const vlrS = limparValorFinanceiro(c[4]);
+                    const vlrC = limparValorFinanceiro(c[6]);
+
+                    const tr = document.createElement('tr');
+                    tr.dataset.valE = vlrS; 
+                    tr.dataset.valG = vlrC; 
+                    tr.dataset.codB = cod;
+                    tr.dataset.search = (cod + " " + desc).toLowerCase();
+                    
+                    tr.innerHTML = `
+                        <td>${cod}</td>
+                        <td>${desc}</td>
+                        <td style="text-align:center">${un}</td>
+                        <td>R$ ${vlrS.toFixed(3).replace('.',',')}</td>
+                        <td>R$ ${vlrC.toFixed(3).replace('.',',')}</td>
+                        <td class="col-qtd"><input type="number" class="input-qtd" value="0" min="0" oninput="atu(this)"></td>
+                        <td class="col-desc-p"><input type="number" class="input-desc" value="0" min="0" oninput="atu(this)"></td>
+                        <td style="text-align:right; font-weight:bold">R$ 0,000</td>
+                    `;
+                    tb.appendChild(tr);
+                }
+            });
+
+            document.getElementById('syncStatus').innerText = "✅ Produtos Carregados";
+            document.getElementById('syncStatus').className = "status-sync sync-success";
+        } catch(e) {
+            document.getElementById('syncStatus').innerText = "❌ Erro na Planilha";
+            document.getElementById('syncStatus').className = "status-sync sync-error";
+        }
+    }
+
+    // Atualização de cálculos
+    function atu(el) {
+        const tr = el.closest('tr');
+        const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
+        const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
+        
+        if (q > 0) tr.classList.add('has-qty'); else tr.classList.remove('has-qty');
+
+        const vlrC = parseFloat(tr.dataset.valG);
+        const subtotal = (vlrC * q) * (1 - (d/100));
+        
+        tr.cells[7].innerText = "R$ " + subtotal.toFixed(3).replace('.',',');
+
+        let totalGeral = 0;
+        document.querySelectorAll('tr.has-qty').forEach(t => {
+            const tq = parseFloat(t.querySelector('.input-qtd').value) || 0;
+            const td = parseFloat(t.querySelector('.input-desc').value) || 0;
+            totalGeral += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
+        });
+        document.getElementById('headerTotalGeral').innerText = "R$ " + totalGeral.toFixed(3).replace('.',',');
+    }
+
+    // Busca
+    document.getElementById('inputBusca').addEventListener('input', function() {
+        const f = this.value.toLowerCase();
+        document.querySelectorAll('#corpoTabela tr').forEach(tr => {
+            tr.style.display = tr.dataset.search.includes(f) ? "" : "none";
+        });
+    });
+
+    // CSV para importação (com Ponto e Vírgula)
     function gerarConteudoCSV() {
         let csv = "CD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
         document.querySelectorAll('tr.has-qty').forEach(tr => {
@@ -144,9 +207,46 @@
         return "\ufeff" + csv; 
     }
 
+    // ZIP e E-mail
+    async function enviarParaNuvem() {
+        if (document.querySelectorAll('tr.has-qty').length === 0) {
+            alert("O pedido está vazio!"); return;
+        }
+
+        const btn = document.getElementById('btnEnviarEmail');
+        btn.innerText = "⏳ Enviando ZIP..."; btn.disabled = true;
+
+        try {
+            const zip = new JSZip();
+            const r = (document.getElementById('razaoSocial').value || "SEM_NOME").replace(/\s+/g, '_');
+            
+            zip.file(`IMPORTAR_${r}.csv`, gerarConteudoCSV());
+            
+            let resumo = `RESUMO DO PEDIDO\nCliente: ${document.getElementById('razaoSocial').value}\nTotal: ${document.getElementById('headerTotalGeral').innerText}\n\nITENS:\n`;
+            document.querySelectorAll('tr.has-qty').forEach(tr => {
+                resumo += `- ${tr.cells[1].innerText} | Qtd: ${tr.querySelector('.input-qtd').value}\n`;
+            });
+            zip.file(`RESUMO_${r}.txt`, resumo);
+
+            const base64 = await zip.generateAsync({type: "base64"});
+
+            await fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ razaoSocial: r, zipBase64: base64 })
+            });
+            
+            alert("✅ Pedido enviado com sucesso por e-mail!");
+        } catch (e) {
+            alert("❌ Falha no envio.");
+        } finally {
+            btn.innerText = "📤 Enviar Pedido por E-mail"; btn.disabled = false;
+        }
+    }
+
     async function baixarZIP() {
         const zip = new JSZip();
-        const r = getRazaoFinal().replace(/\s+/g, '_');
+        const r = (document.getElementById('razaoSocial').value || "PEDIDO").replace(/\s+/g, '_');
         zip.file(`IMPORTAR_${r}.csv`, gerarConteudoCSV());
         const content = await zip.generateAsync({type:"blob"});
         const link = document.createElement("a");
@@ -154,108 +254,6 @@
         link.download = `PEDIDO_${r}.zip`;
         link.click();
     }
-
-    async function enviarParaNuvem() {
-        if (document.querySelectorAll('tr.has-qty').length === 0) {
-            alert("Adicione produtos primeiro!");
-            return;
-        }
-
-        const btn = document.getElementById('btnEnviarEmail');
-        btn.innerText = "⏳ Gerando pacote e enviando...";
-        btn.disabled = true;
-
-        try {
-            const zip = new JSZip();
-            const r = getRazaoFinal().replace(/\s+/g, '_');
-            
-            // 1. CSV
-            zip.file(`IMPORTAR_${r}.csv`, gerarConteudoCSV());
-            
-            // 2. TXT Resumo
-            let resumo = `RESUMO DO PEDIDO - NEK\n------------------------------\n`;
-            resumo += `Cliente: ${getRazaoFinal()}\nCNPJ: ${getCnpjFinal()}\n`;
-            resumo += `Data: ${new Date().toLocaleDateString('pt-BR')}\n`;
-            resumo += `Total: ${document.getElementById('headerTotalGeral').innerText}\n\n`;
-            resumo += `ITENS:\n`;
-            document.querySelectorAll('tr.has-qty').forEach(tr => { 
-                resumo += `- ${tr.cells[1].innerText} | Qtd: ${tr.querySelector('.input-qtd').value} | Sub: ${tr.cells[8].innerText}\n`; 
-            });
-            zip.file(`RESUMO_${r}.txt`, resumo);
-
-            const base64 = await zip.generateAsync({type: "base64"});
-
-            // Envio para o Google
-            await fetch(URL_SCRIPT_GOOGLE, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    razaoSocial: getRazaoFinal(),
-                    zipBase64: base64
-                })
-            });
-            
-            alert("✅ O arquivo ZIP foi enviado para o processamento de e-mail com sucesso!");
-        } catch (error) {
-            alert("❌ Erro técnico ao enviar. Verifique sua conexão.");
-            console.error(error);
-        } finally {
-            btn.innerText = "📤 Enviar Pedido por E-mail";
-            btn.disabled = false;
-        }
-    }
-
-    async function carregarProdutos() {
-        try {
-            const r = await fetch(SHEET_PRODUTOS);
-            const txt = await r.text();
-            const linhas = txt.split(/\r?\n/);
-            const tb = document.getElementById('corpoTabela');
-            linhas.forEach((l, i) => {
-                if (i === 0 || !l) return;
-                let c = l.split(','); 
-                if (c.length < 5) return;
-                const vE = parseFloat(c[4]) || 0; const vG = parseFloat(c[6]) || 0;
-                const tr = document.createElement('tr');
-                tr.dataset.valE = vE; tr.dataset.valG = vG; tr.dataset.codB = c[1];
-                tr.dataset.search = (c[0]+c[1]+c[3]).toLowerCase();
-                tr.innerHTML = `<td>${c[0]}/${c[1]}</td><td>${c[3]}</td><td>${c[2]}</td>
-                    <td>R$ ${vE.toFixed(3).replace('.',',')}</td><td>R$ ${vG.toFixed(3).replace('.',',')}</td>
-                    <td class="col-qtd"><input type="number" class="input-qtd" value="0" oninput="atu(this)"></td>
-                    <td class="col-desc-p"><input type="number" class="input-desc" value="0" oninput="atu(this)"></td>
-                    <td style="text-align:right">R$ 0,000</td><td style="text-align:right">R$ 0,000</td>`;
-                tb.appendChild(tr);
-            });
-            document.getElementById('syncStatus').innerText = "✅ Conectado";
-            document.getElementById('syncStatus').className = "status-sync sync-success";
-        } catch(e) { document.getElementById('syncStatus').innerText = "❌ Offline"; }
-    }
-
-    function atu(el) {
-        const tr = el.closest('tr');
-        const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
-        const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
-        if (q > 0) tr.classList.add('has-qty'); else tr.classList.remove('has-qty');
-        const vE = parseFloat(tr.dataset.valE); const vG = parseFloat(tr.dataset.valG);
-        const subE = (vE * q) * (1 - (d/100)); const subG = (vG * q) * (1 - (d/100));
-        tr.cells[7].innerText = "R$ " + subE.toFixed(3).replace('.',',');
-        tr.cells[8].innerText = "R$ " + subG.toFixed(3).replace('.',',');
-        let tot = 0;
-        document.querySelectorAll('tr.has-qty').forEach(t => {
-            const tq = parseFloat(t.querySelector('.input-qtd').value) || 0;
-            const td = parseFloat(t.querySelector('.input-desc').value) || 0;
-            tot += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
-        });
-        document.getElementById('headerTotalGeral').innerText = "R$ " + tot.toFixed(3).replace('.',',');
-    }
-
-    document.getElementById('inputBusca').onkeyup = function() {
-        const f = this.value.toLowerCase();
-        document.querySelectorAll('#corpoTabela tr').forEach(tr => {
-            tr.style.display = tr.dataset.search.includes(f) ? "" : "none";
-        });
-    };
 
     carregarProdutos();
 </script>
