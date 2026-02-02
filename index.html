@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.45</title>
+    <title>NEK - Sistema de Pedidos v21.45 (Envio Ativado)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; }
@@ -70,6 +70,7 @@
         .btn-csv { background: var(--green); color: white; }
         .btn-print { background: #555; color: white; }
         .btn-zip { background: var(--purple); color: white; }
+        .btn-send { background: #2980b9; color: white; }
         .btn-clear { background: var(--red); color: white; }
     </style>
 </head>
@@ -146,16 +147,18 @@
         <button class="btn btn-print" onclick="imprimirPDF()">🖨️ Imprimir</button>
         <button class="btn btn-csv" onclick="exportarCSV()">📄 Exportar CSV</button>
         <button class="btn btn-zip" onclick="baixarZIP()">📦 Baixar ZIP (Completo)</button>
+        <button class="btn btn-send" id="btnEnviarEmail" onclick="enviarZIPPorEmail()">📤 Enviar Pedido (E-mail)</button>
     </div>
 
     <div style="text-align: center; font-size: 10px; color: #999; margin-top: 20px;">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.45</strong> | 2026
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.45.EMAIL</strong> | 2026
     </div>
 </div>
 
 <script>
     const SHEET_PRODUTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRnUPgmknCzn9EeUSo3y0UfAe0FtGeTCWNZwhE9TxgdLhIQtPglMuoN-xEcWvHiQPzSqf_UQH7C88TP/pub?output=csv';
     const SHEET_CLIENTES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQYCLsgEtBzLW7931ivMquRWiwRl9twob9MOnuuQAA5MtukdGVOQPsJJiWsSlzlFZDzKpmj3nRAOoRJ/pub?output=csv';
+    const URL_SCRIPT_GOOGLE = 'https://script.google.com/macros/s/AKfycbw3Sgn7RVVSoZNcd9PN2mB7JW1yCicFrVsMyP2KdnstLG5y0c-o-ChhWjUeDuZoI9xY/exec';
     
     let listaClientes = [];
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
@@ -256,15 +259,11 @@
     const getRazaoFinal = () => document.getElementById('razaoSocial').value || "CLIENTE_AVULSO";
 
     function gerarConteudoCSV() {
-        // --- v21.45: VOLTANDO PARA PONTO-E-VÍRGULA (PADRÃO EXCEL BR) ---
-        // Isso força o Excel a separar as colunas A, B e C automaticamente.
         let csv = "CD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
             const vE_liq = (parseFloat(tr.dataset.valE) * (1 - (d/100))).toFixed(3).replace('.', ',');
-            
-            // Usamos ponto-e-vírgula aqui
             csv += `${tr.dataset.codB};${q};${vE_liq}\n`;
         });
         return "\ufeff" + csv; 
@@ -310,6 +309,50 @@
         link.href = URL.createObjectURL(content);
         link.download = `PEDIDO_${r}.zip`;
         link.click();
+    }
+
+    // --- NOVA FUNÇÃO DE ENVIO POR E-MAIL ---
+    async function enviarZIPPorEmail() {
+        const itens = document.querySelectorAll('tr.has-qty');
+        if (itens.length === 0) return alert("O pedido está vazio!");
+
+        const btn = document.getElementById('btnEnviarEmail');
+        btn.disabled = true;
+        btn.innerText = "⏳ Enviando...";
+
+        try {
+            const zip = new JSZip();
+            const cliente = getRazaoFinal();
+            const r = cliente.replace(/\s+/g, '_');
+            
+            // 1. Gera o CSV de importação
+            zip.file(`IMPORTAR_${r}.csv`, gerarConteudoCSV());
+
+            // 2. Gera o resumo em texto (mesma lógica do baixarZIP)
+            let resumo = `RESUMO DO PEDIDO - NEK\nCliente: ${cliente}\nTotal: ${document.getElementById('headerTotalGeral').innerText}\n`;
+            zip.file(`RESUMO_${r}.txt`, resumo);
+
+            // 3. Converte para Base64
+            const b64 = await zip.generateAsync({type: "base64"});
+
+            // 4. Envia para o seu Apps Script
+            await fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({
+                    razaoSocial: cliente,
+                    zipBase64: b64
+                })
+            });
+
+            alert("✅ Pedido enviado com sucesso por e-mail!");
+        } catch (e) {
+            console.error(e);
+            alert("❌ Erro ao enviar. Verifique sua internet.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "📤 Enviar Pedido (E-mail)";
+        }
     }
 
     function imprimirPDF() {
