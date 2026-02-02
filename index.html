@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.51</title>
+    <title>NEK - Sistema de Pedidos v21.52</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; }
@@ -22,7 +22,6 @@
         .total-header-value { font-size: 20px; font-weight: 800; color: #1b5e20; }
         
         .box-search { background: var(--yellow); padding: 12px; border: 1px solid #f1c40f; border-radius: 8px; margin-bottom: 15px; }
-        label { display: block; font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
         input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
         
         .table-container { max-height: 450px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; }
@@ -38,14 +37,6 @@
         .btn-send { background: #2980b9; color: white; }
         .btn-zip { background: var(--purple); color: white; }
         .btn-clear { background: var(--red); color: white; }
-        .btn:disabled { background: #ccc; cursor: not-allowed; }
-
-        @media print {
-            .btn, .box-search, .actions-footer, #syncStatus { display: none !important; }
-            .container { box-shadow: none; border: none; width: 100%; padding: 0; }
-            .table-container { max-height: none; overflow: visible; }
-            input { border: none !important; }
-        }
     </style>
 </head>
 <body>
@@ -53,26 +44,22 @@
 <div class="container">
     <div class="header-top">
         <div>
-            <h2 style="margin:0; color:var(--blue);">🚲 NEK - Sistema de Pedido</h2>
-            <div id="syncStatus" class="status-sync">⏳ Sincronizando produtos...</div>
+            <h2 style="margin:0; color:var(--blue);">🚲 NEK - Pedidos Online</h2>
+            <div id="syncStatus" class="status-sync">⏳ Carregando produtos...</div>
         </div>
         <div id="data-atual" style="font-weight: bold;"></div>
     </div>
 
     <div class="cliente-grid">
-        <div style="grid-column: span 2;"><label>Razão Social</label><input type="text" id="razaoSocial" placeholder="Nome do cliente"></div>
-        <div><label>CNPJ</label><input type="text" id="cnpj" placeholder="CNPJ"></div>
-        <div><label>Vendedor / Contato</label><input type="text" id="vendedor" placeholder="Seu nome"></div>
+        <div style="grid-column: span 2;"><label>Razão Social</label><input type="text" id="razaoSocial"></div>
+        <div><label>CNPJ</label><input type="text" id="cnpj"></div>
+        <div><label>Vendedor</label><input type="text" id="vendedor"></div>
         <div class="full-width">
-            <div class="total-header-box">
-                <div class="total-header-value" id="headerTotalGeral">R$ 0,000</div>
-            </div>
+            <div class="total-header-box"><div class="total-header-value" id="headerTotalGeral">R$ 0,000</div></div>
         </div>
     </div>
 
-    <div class="box-search">
-        <input type="text" id="inputBusca" placeholder="🔍 Pesquisar por CÓDIGO ou DESCRIÇÃO do produto...">
-    </div>
+    <div class="box-search"><input type="text" id="inputBusca" placeholder="🔍 Digite para pesquisar..."></div>
 
     <div class="table-container">
         <table>
@@ -93,20 +80,23 @@
     </div>
 
     <div class="actions-footer">
-        <button class="btn btn-clear" onclick="if(confirm('Limpar pedido?')) location.reload()">🗑️ Limpar</button>
+        <button class="btn btn-clear" onclick="location.reload()">🗑️ Limpar</button>
         <button class="btn btn-zip" onclick="baixarZIP()">📦 Baixar ZIP</button>
-        <button class="btn btn-send" id="btnEnviarEmail" onclick="enviarParaNuvem()">📤 Enviar Pedido por E-mail</button>
+        <button class="btn btn-send" id="btnEnviarEmail" onclick="enviarParaNuvem()">📤 Enviar por E-mail</button>
     </div>
 </div>
 
 <script>
-    // LINKS DE INTEGRAÇÃO
+    // --- CONFIGURAÇÃO ---
     const SHEET_PRODUTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRnUPgmknCzn9EeUSo3y0UfAe0FtGeTCWNZwhE9TxgdLhIQtPglMuoN-xEcWvHiQPzSqf_UQH7C88TP/pub?output=csv';
     const URL_SCRIPT_GOOGLE = 'https://script.google.com/macros/s/AKfycbw3Sgn7RVVSoZNcd9PN2mB7JW1yCicFrVsMyP2KdnstLG5y0c-o-ChhWjUeDuZoI9xY/exec';
 
-    document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
+    // 1. CARREGAMENTO INICIAL (PRIORIDADE TOTAL)
+    window.onload = function() {
+        document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
+        carregarProdutos();
+    };
 
-    // Função de limpeza de valores monetários
     function limparValorFinanceiro(v) {
         if (!v) return 0;
         let n = v.toString().replace('R$', '').replace(/\s/g, '').replace(/"/g, '');
@@ -115,38 +105,41 @@
         return parseFloat(n) || 0;
     }
 
-    // Carregamento dos Produtos
     async function carregarProdutos() {
+        const tb = document.getElementById('corpoTabela');
+        const status = document.getElementById('syncStatus');
+        
         try {
-            const r = await fetch(SHEET_PRODUTOS + '?nocache=' + new Date().getTime());
-            const txt = await r.text();
-            const linhas = txt.split(/\r?\n/);
-            const tb = document.getElementById('corpoTabela');
-            tb.innerHTML = ""; 
+            const response = await fetch(SHEET_PRODUTOS + '?t=' + Date.now());
+            const data = await response.text();
+            const linhas = data.split(/\r?\n/);
+            
+            tb.innerHTML = "";
 
-            linhas.forEach((l, i) => {
-                if (i === 0 || !l) return;
+            if (linhas.length < 2) throw new Error("Planilha vazia");
+
+            linhas.forEach((linha, i) => {
+                if (i === 0 || !linha) return;
                 
-                // Regex para separar colunas respeitando vírgulas dentro de aspas
-                let c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                // Divisão robusta de colunas
+                let c = linha.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                 
                 if (c.length >= 7) {
-                    const cod = c[1] ? c[1].replace(/"/g, '').trim() : '';
-                    const desc = c[3] ? c[3].replace(/"/g, '').trim() : '';
-                    const un = c[2] ? c[2].replace(/"/g, '').trim() : '';
                     const vlrS = limparValorFinanceiro(c[4]);
                     const vlrC = limparValorFinanceiro(c[6]);
+                    const cod = c[1] ? c[1].replace(/"/g, '') : '';
+                    const desc = c[3] ? c[3].replace(/"/g, '') : '';
 
                     const tr = document.createElement('tr');
-                    tr.dataset.valE = vlrS; 
-                    tr.dataset.valG = vlrC; 
+                    tr.dataset.valE = vlrS;
+                    tr.dataset.valG = vlrC;
                     tr.dataset.codB = cod;
                     tr.dataset.search = (cod + " " + desc).toLowerCase();
-                    
+
                     tr.innerHTML = `
                         <td>${cod}</td>
                         <td>${desc}</td>
-                        <td style="text-align:center">${un}</td>
+                        <td style="text-align:center">${c[2] ? c[2].replace(/"/g, '') : ''}</td>
                         <td>R$ ${vlrS.toFixed(3).replace('.',',')}</td>
                         <td>R$ ${vlrC.toFixed(3).replace('.',',')}</td>
                         <td class="col-qtd"><input type="number" class="input-qtd" value="0" min="0" oninput="atu(this)"></td>
@@ -157,105 +150,76 @@
                 }
             });
 
-            document.getElementById('syncStatus').innerText = "✅ Produtos Carregados";
-            document.getElementById('syncStatus').className = "status-sync sync-success";
-        } catch(e) {
-            document.getElementById('syncStatus').innerText = "❌ Erro na Planilha";
-            document.getElementById('syncStatus').className = "status-sync sync-error";
+            status.innerText = "✅ Sincronizado";
+            status.className = "status-sync sync-success";
+        } catch (err) {
+            console.error(err);
+            status.innerText = "❌ Erro ao carregar planilha";
+            status.className = "status-sync sync-error";
         }
     }
 
-    // Atualização de cálculos
     function atu(el) {
         const tr = el.closest('tr');
         const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
         const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
+        const vlrC = parseFloat(tr.dataset.valG);
         
         if (q > 0) tr.classList.add('has-qty'); else tr.classList.remove('has-qty');
 
-        const vlrC = parseFloat(tr.dataset.valG);
-        const subtotal = (vlrC * q) * (1 - (d/100));
-        
-        tr.cells[7].innerText = "R$ " + subtotal.toFixed(3).replace('.',',');
+        const sub = (vlrC * q) * (1 - (d/100));
+        tr.cells[7].innerText = "R$ " + sub.toFixed(3).replace('.',',');
 
-        let totalGeral = 0;
+        let total = 0;
         document.querySelectorAll('tr.has-qty').forEach(t => {
             const tq = parseFloat(t.querySelector('.input-qtd').value) || 0;
             const td = parseFloat(t.querySelector('.input-desc').value) || 0;
-            totalGeral += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
+            total += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
         });
-        document.getElementById('headerTotalGeral').innerText = "R$ " + totalGeral.toFixed(3).replace('.',',');
+        document.getElementById('headerTotalGeral').innerText = "R$ " + total.toFixed(3).replace('.',',');
     }
 
-    // Busca
-    document.getElementById('inputBusca').addEventListener('input', function() {
+    document.getElementById('inputBusca').oninput = function() {
         const f = this.value.toLowerCase();
         document.querySelectorAll('#corpoTabela tr').forEach(tr => {
             tr.style.display = tr.dataset.search.includes(f) ? "" : "none";
         });
-    });
+    };
 
-    // CSV para importação (com Ponto e Vírgula)
-    function gerarConteudoCSV() {
+    function gerarCSV() {
         let csv = "CD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
         document.querySelectorAll('tr.has-qty').forEach(tr => {
-            const q = tr.querySelector('.input-qtd').value;
-            const d = tr.querySelector('.input-desc').value;
-            const vE_liq = (parseFloat(tr.dataset.valE) * (1 - (d/100))).toFixed(3).replace('.', ',');
-            csv += `${tr.dataset.codB};${q};${vE_liq}\n`;
+            const vE_liq = (parseFloat(tr.dataset.valE) * (1 - (parseFloat(tr.querySelector('.input-desc').value)/100))).toFixed(3).replace('.', ',');
+            csv += `${tr.dataset.codB};${tr.querySelector('.input-qtd').value};${vE_liq}\n`;
         });
-        return "\ufeff" + csv; 
-    }
-
-    // ZIP e E-mail
-    async function enviarParaNuvem() {
-        if (document.querySelectorAll('tr.has-qty').length === 0) {
-            alert("O pedido está vazio!"); return;
-        }
-
-        const btn = document.getElementById('btnEnviarEmail');
-        btn.innerText = "⏳ Enviando ZIP..."; btn.disabled = true;
-
-        try {
-            const zip = new JSZip();
-            const r = (document.getElementById('razaoSocial').value || "SEM_NOME").replace(/\s+/g, '_');
-            
-            zip.file(`IMPORTAR_${r}.csv`, gerarConteudoCSV());
-            
-            let resumo = `RESUMO DO PEDIDO\nCliente: ${document.getElementById('razaoSocial').value}\nTotal: ${document.getElementById('headerTotalGeral').innerText}\n\nITENS:\n`;
-            document.querySelectorAll('tr.has-qty').forEach(tr => {
-                resumo += `- ${tr.cells[1].innerText} | Qtd: ${tr.querySelector('.input-qtd').value}\n`;
-            });
-            zip.file(`RESUMO_${r}.txt`, resumo);
-
-            const base64 = await zip.generateAsync({type: "base64"});
-
-            await fetch(URL_SCRIPT_GOOGLE, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify({ razaoSocial: r, zipBase64: base64 })
-            });
-            
-            alert("✅ Pedido enviado com sucesso por e-mail!");
-        } catch (e) {
-            alert("❌ Falha no envio.");
-        } finally {
-            btn.innerText = "📤 Enviar Pedido por E-mail"; btn.disabled = false;
-        }
+        return "\ufeff" + csv;
     }
 
     async function baixarZIP() {
         const zip = new JSZip();
-        const r = (document.getElementById('razaoSocial').value || "PEDIDO").replace(/\s+/g, '_');
-        zip.file(`IMPORTAR_${r}.csv`, gerarConteudoCSV());
-        const content = await zip.generateAsync({type:"blob"});
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(content);
-        link.download = `PEDIDO_${r}.zip`;
-        link.click();
+        zip.file("pedido.csv", gerarCSV());
+        const blob = await zip.generateAsync({type:"blob"});
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "pedido.zip";
+        a.click();
     }
 
-    carregarProdutos();
+    async function enviarParaNuvem() {
+        const btn = document.getElementById('btnEnviarEmail');
+        btn.disabled = true; btn.innerText = "⏳ Enviando...";
+        try {
+            const zip = new JSZip();
+            zip.file("pedido.csv", gerarCSV());
+            const b64 = await zip.generateAsync({type:"base64"});
+            await fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST', mode: 'no-cors',
+                body: JSON.stringify({ razaoSocial: document.getElementById('razaoSocial').value || "AVULSO", zipBase64: b64 })
+            });
+            alert("✅ Enviado!");
+        } catch (e) { alert("Erro no envio"); }
+        finally { btn.disabled = false; btn.innerText = "📤 Enviar por E-mail"; }
+    }
 </script>
 </body>
 </html>
