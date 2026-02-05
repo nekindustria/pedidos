@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.52</title>
+    <title>NEK - Sistema de Pedidos v21.53</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; --dark: #34495e; }
@@ -17,19 +17,22 @@
         .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; position: relative; }
         .full-width { grid-column: span 4; }
         
+        .autocomplete-suggestions { position: absolute; background: white; border: 1px solid #ccc; z-index: 1000; max-height: 200px; overflow-y: auto; width: 38%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .autocomplete-suggestion { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 13px; }
+        .autocomplete-suggestion:hover { background: #f0f0f0; }
+
         .total-header-box { background: #eafaf1; border: 2px solid var(--green); border-radius: 8px; padding: 8px; text-align: center; height: 38px; display: flex; flex-direction: column; justify-content: center; }
         .total-header-value { font-size: 20px; font-weight: 800; color: #1b5e20; }
         
         .box-search { background: var(--yellow); padding: 12px; border: 1px solid #f1c40f; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         label { display: block; font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
-        input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
+        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
         
         .table-container { max-height: 450px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th, td { padding: 8px 6px; border-bottom: 1px solid #eee; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        th { background: var(--blue); color: white; position: sticky; top: 0; z-index: 10; font-size: 11px; text-transform: uppercase; text-align: left; }
+        th { background: var(--blue); color: white; position: sticky; top: 0; z-index: 10; font-size: 11px; text-transform: uppercase; }
 
-        /* Colunagem v21.45 */
         .col-cod { width: 11%; }
         .col-desc { width: 32%; }
         .col-un { width: 5%; text-align: center; }
@@ -38,29 +41,16 @@
         .col-desc-p { width: 7%; text-align: center; }
         .col-tot { width: 9%; text-align: right; }
 
-        th.col-vlr, th.col-tot { text-align: center; }
         .input-qtd, .input-desc { width: 85%; font-weight: bold; text-align: center; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; font-size: 13px; }
         
-        .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 2px solid #eee; padding-top: 15px; flex-wrap: wrap; }
-        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 12px; color: white; }
-        .btn-csv { background: var(--green); }
-        .btn-print { background: #555; }
-        .btn-history { background: var(--dark); }
-        .btn-save-local { background: var(--accent); }
+        .footer-info { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #999; }
+        .actions-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; color: white; display: flex; align-items: center; gap: 5px; }
 
-        #modalHistory { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); }
-        .modal-content { background: white; margin: 5% auto; padding: 25px; width: 70%; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); }
-
-        .print-text { display: none; }
         @media print {
-            @page { size: A4 landscape; margin: 10mm; }
-            .box-search, .actions-footer, .btn, .status-sync, #cnpjBusca, input { display: none !important; }
-            .print-text { display: block !important; }
-            .container { box-shadow: none !important; border: none !important; width: 100% !important; }
-            table { width: 100% !important; border: 1px solid #ccc; }
+            .box-search, .actions-footer, .btn, .status-sync, #cnpjBusca, input, .footer-info { display: none !important; }
             tbody tr { display: none !important; }
             tbody tr.has-qty { display: table-row !important; }
-            td, th { font-size: 10px !important; border: 1px solid #eee !important; }
         }
     </style>
 </head>
@@ -72,23 +62,24 @@
             <h2 style="margin:0; color:var(--blue);">🚲 NEK - Orçamento de Pedido</h2>
             <div id="syncStatus" class="status-sync">⏳ Conectando...</div>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <button class="btn btn-history" onclick="abrirHistorico()">📂 Ver Pedidos Salvos</button>
-            <div id="data-atual" style="font-weight: bold;"></div>
-        </div>
+        <div id="data-atual" style="font-weight: bold;"></div>
     </div>
 
     <div class="cliente-grid">
-        <div style="grid-column: span 2;"><label>Razão Social</label><input type="text" id="razaoSocial"><span class="print-text" id="p-razao"></span></div>
-        <div><label>CNPJ</label><input type="text" id="cnpjCadastrado" readonly><span class="print-text" id="p-cnpj"></span></div>
-        <div><label>Busca CNPJ</label><input type="text" id="cnpjBusca" placeholder="Consultar..."></div>
+        <div style="grid-column: span 2; position: relative;">
+            <label>Razão Social (Planilha)</label>
+            <input type="text" id="razaoSocial" autocomplete="off" placeholder="Busque pelo nome...">
+            <div id="sugestoes" class="autocomplete-suggestions"></div>
+        </div>
+        <div><label>CNPJ Cadastrado</label><input type="text" id="cnpjCadastrado" readonly></div>
+        <div><label>Consulta Externo</label><input type="text" id="cnpjBusca" placeholder="00.000.000/0001-00"></div>
         <div style="grid-column: span 2;"><label>Endereço</label><input type="text" id="endereco"></div>
         <div><label>Contato</label><input type="text" id="nomeContato"></div>
         <div><label>Telefone</label><input type="text" id="telefone"></div>
         <div class="full-width"><div class="total-header-box"><div class="total-header-value" id="headerTotalGeral">R$ 0,000</div></div></div>
     </div>
 
-    <div class="box-search"><input type="text" id="inputBusca" placeholder="Pesquisar por código ou descrição..."></div>
+    <div class="box-search"><input type="text" id="inputBusca" placeholder="Filtrar por código ou descrição..."></div>
 
     <div class="table-container">
         <table>
@@ -109,105 +100,124 @@
         </table>
     </div>
 
+    <div class="footer-info">
+        <span>Desenvolvido por NEK Sistemas</span>
+        <span>Versão do Sistema: 21.53</span>
+    </div>
+
     <div class="actions-footer">
-        <button class="btn" style="background:var(--red)" onclick="limparPedido()">🗑️ Limpar Atual</button>
-        <button class="btn btn-save-local" onclick="arquivarPedido()">💾 Salvar no Histórico</button>
-        <button class="btn btn-print" onclick="window.print()">🖨️ Imprimir</button>
-        <button class="btn btn-csv" onclick="exportarCSV()">📄 Exportar CSV</button>
+        <button class="btn" style="background:var(--red)" onclick="location.reload()">🗑️ Limpar</button>
+        <button class="btn" style="background:var(--accent)" onclick="window.print()">🖨️ Imprimir PDF</button>
+        <button class="btn" style="background:var(--green)" onclick="exportarCSV()">📄 Exportar CSV</button>
     </div>
 </div>
 
-<div id="modalHistory"><div class="modal-content"><h3 style="margin-top:0">📋 Histórico de Pedidos</h3><div id="listaHistorico" style="max-height:300px; overflow-y:auto; margin-bottom:20px"></div><button class="btn btn-print" onclick="fecharHistorico()">Fechar</button></div></div>
-
 <script>
-    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRnUPgmknCzn9EeUSo3y0UfAe0FtGeTCWNZwhE9TxgdLhIQtPglMuoN-xEcWvHiQPzSqf_UQH7C88TP/pub?output=csv';
+    const URL_PRODUTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRnUPgmknCzn9EeUSo3y0UfAe0FtGeTCWNZwhE9TxgdLhIQtPglMuoN-xEcWvHiQPzSqf_UQH7C88TP/pub?output=csv';
+    const URL_CLIENTES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQYCLsgEtBzLW7931ivMquRWiwRl9twob9MOnuuQAA5MtukdGVOQPsJJiWsSlzlFZDzKpmj3nRAOoRJ/pub?output=csv';
     
-    document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
+    let listaClientes = [];
 
-    // Função robusta para ler CSV (trata aspas e vírgulas internas)
     function parseCSV(text) {
-        const rows = [];
-        let currentRow = [];
-        let currentField = '';
-        let insideQuotes = false;
-
+        const rows = []; let cur = ''; let q = false;
         for (let i = 0; i < text.length; i++) {
             const char = text[i];
-            const nextChar = text[i + 1];
-
-            if (insideQuotes) {
-                if (char === '"' && nextChar === '"') {
-                    currentField += '"'; i++;
-                } else if (char === '"') {
-                    insideQuotes = false;
-                } else {
-                    currentField += char;
-                }
-            } else {
-                if (char === '"') {
-                    insideQuotes = true;
-                } else if (char === ',') {
-                    currentRow.push(currentField);
-                    currentField = '';
-                } else if (char === '\n' || char === '\r') {
-                    if (currentField || currentRow.length > 0) {
-                        currentRow.push(currentField);
-                        rows.push(currentRow);
-                        currentField = '';
-                        currentRow = [];
-                    }
-                    if (char === '\r' && nextChar === '\n') i++;
-                } else {
-                    currentField += char;
-                }
-            }
+            if (char === '"') q = !q;
+            else if (char === ',' && !q) { rows.push(cur); cur = ''; }
+            else if (char === '\n' && !q) { rows.push(cur); cur = ''; }
+            else cur += char;
         }
         return rows;
     }
 
+    // --- CONSULTA CNPJ EXTERNO ---
+    document.getElementById('cnpjBusca').addEventListener('blur', async function() {
+        const cnpj = this.value.replace(/\D/g, '');
+        if (cnpj.length !== 14) return;
+        this.placeholder = "Buscando...";
+        try {
+            const res = await fetch(`https://publica.cnpj.ws/cnpj/${cnpj}`);
+            const data = await res.json();
+            document.getElementById('razaoSocial').value = data.razao_social;
+            document.getElementById('endereco').value = `${data.estabelecimento.tipo_logradouro} ${data.estabelecimento.logradouro}, ${data.estabelecimento.numero}`;
+            document.getElementById('cnpjCadastrado').value = data.cnpj_raiz + data.estabelecimento.cnpj_ordem + data.estabelecimento.cnpj_dv;
+        } catch (e) { alert("CNPJ não encontrado na base externa."); }
+    });
+
+    // --- AUTOCOMPLETE CLIENTES ---
+    async function carregarClientes() {
+        try {
+            const r = await fetch(URL_CLIENTES);
+            const t = await r.text();
+            const linhas = t.split(/\r?\n/);
+            listaClientes = linhas.map(l => {
+                const c = l.split(',');
+                return { nome: c[0], cnpj: c[1], end: c[2], tel: c[3], cont: c[4] };
+            });
+        } catch(e) { console.error("Erro clientes"); }
+    }
+
+    document.getElementById('razaoSocial').addEventListener('input', function() {
+        const busca = this.value.toLowerCase();
+        const sug = document.getElementById('sugestoes');
+        sug.innerHTML = '';
+        if (busca.length < 2) return;
+        const filtrados = listaClientes.filter(c => c.nome.toLowerCase().includes(busca)).slice(0, 5);
+        filtrados.forEach(c => {
+            const d = document.createElement('div');
+            d.className = 'autocomplete-suggestion';
+            d.innerText = c.nome;
+            d.onclick = () => {
+                document.getElementById('razaoSocial').value = c.nome;
+                document.getElementById('cnpjCadastrado').value = c.cnpj;
+                document.getElementById('endereco').value = c.end;
+                document.getElementById('telefone').value = c.tel;
+                document.getElementById('nomeContato').value = c.cont;
+                sug.innerHTML = '';
+            };
+            sug.appendChild(d);
+        });
+    });
+
+    // --- CARGA DE PRODUTOS ---
     async function carregarProdutos() {
         try {
-            const r = await fetch(SHEET_URL);
+            const r = await fetch(URL_PRODUTOS);
             const txt = await r.text();
-            const dados = parseCSV(txt);
+            const linhas = txt.split(/\r?\n/);
             const tb = document.getElementById('corpoTabela');
-            
-            dados.forEach((c, i) => {
-                if (i === 0 || c.length < 5) return;
-                
-                // c[0] = Coluna A | c[1] = Coluna B | c[3] = Descrição
-                const codigoCombinado = c[0] + " / " + c[1]; 
+            linhas.forEach((l, i) => {
+                if (i === 0 || !l) return;
+                const c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                 const vE = parseFloat(c[4]) || 0, vG = parseFloat(c[6]) || 0;
-                
                 const tr = document.createElement('tr');
                 tr.dataset.valE = vE; tr.dataset.valG = vG; tr.dataset.codB = c[1];
                 tr.dataset.search = (c[0]+c[1]+c[3]).toLowerCase();
-                
-                tr.innerHTML = `<td class="col-cod">${codigoCombinado}</td><td class="col-desc">${c[3]}</td><td class="col-un">${c[2]}</td>
-                    <td class="col-vlr">R$ ${vE.toFixed(3).replace('.',',')}</td><td class="col-vlr">R$ ${vG.toFixed(3).replace('.',',')}</td>
-                    <td class="col-qtd"><input type="number" class="input-qtd" value="0" oninput="atu(this)" onfocus="this.select()"></td>
-                    <td class="col-desc-p"><input type="number" class="input-desc" value="0" oninput="atu(this)" onfocus="this.select()"></td>
-                    <td class="col-tot">R$ 0,000</td><td class="col-tot">R$ 0,000</td>`;
+                tr.innerHTML = `<td>${c[0]} / ${c[1]}</td><td>${c[3]}</td><td style="text-align:center">${c[2]}</td>
+                    <td style="text-align:right">R$ ${vE.toFixed(3)}</td><td style="text-align:right">R$ ${vG.toFixed(3)}</td>
+                    <td><input type="number" class="input-qtd" value="0" oninput="atu(this)"></td>
+                    <td><input type="number" class="input-desc" value="0" oninput="atu(this)"></td>
+                    <td style="text-align:right">R$ 0,000</td><td style="text-align:right">R$ 0,000</td>`;
                 tb.appendChild(tr);
             });
-            document.getElementById('syncStatus').innerText = "✅ Banco de Dados OK";
+            document.getElementById('syncStatus').innerText = "✅ Online";
             document.getElementById('syncStatus').className = "status-sync sync-success";
-        } catch(e) { document.getElementById('syncStatus').innerText = "❌ Erro ao carregar"; }
+        } catch(e) { document.getElementById('syncStatus').innerText = "❌ Erro Planilha"; }
     }
 
     function atu(el) {
         const tr = el.closest('tr');
-        const q = parseFloat(tr.querySelector('.input-qtd').value) || 0, d = parseFloat(tr.querySelector('.input-desc').value) || 0;
+        const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
+        const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
         q > 0 ? tr.classList.add('has-qty') : tr.classList.remove('has-qty');
         const vE = parseFloat(tr.dataset.valE), vG = parseFloat(tr.dataset.valG);
-        tr.cells[7].innerText = "R$ " + ((vE * q) * (1 - (d/100))).toFixed(3).replace('.',',');
-        tr.cells[8].innerText = "R$ " + ((vG * q) * (1 - (d/100))).toFixed(3).replace('.',',');
-        let total = 0;
+        tr.cells[7].innerText = "R$ " + ((vE * q) * (1 - (d/100))).toFixed(3);
+        tr.cells[8].innerText = "R$ " + ((vG * q) * (1 - (d/100))).toFixed(3);
+        let tot = 0;
         document.querySelectorAll('tr.has-qty').forEach(t => {
-            const tq = parseFloat(t.querySelector('.input-qtd').value), td = parseFloat(t.querySelector('.input-desc').value);
-            total += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
+            tot += (parseFloat(t.dataset.valG) * (parseFloat(t.querySelector('.input-qtd').value))) * (1 - (parseFloat(t.querySelector('.input-desc').value)/100));
         });
-        document.getElementById('headerTotalGeral').innerText = "R$ " + total.toFixed(3).replace('.',',');
+        document.getElementById('headerTotalGeral').innerText = "R$ " + tot.toFixed(3);
     }
 
     document.getElementById('inputBusca').onkeyup = function() {
@@ -215,28 +225,7 @@
         document.querySelectorAll('#corpoTabela tr').forEach(tr => tr.style.display = tr.dataset.search.includes(f) ? "" : "none");
     };
 
-    function arquivarPedido() {
-        const itens = [];
-        document.querySelectorAll('tr.has-qty').forEach(tr => {
-            itens.push({ cod: tr.dataset.codB, q: tr.querySelector('.input-qtd').value });
-        });
-        if(itens.length === 0) return alert("Pedido vazio!");
-        let h = JSON.parse(localStorage.getItem('nek_hist') || "[]");
-        h.unshift({ data: new Date().toLocaleString(), cliente: document.getElementById('razaoSocial').value, total: document.getElementById('headerTotalGeral').innerText });
-        localStorage.setItem('nek_hist', JSON.stringify(h.slice(0,20)));
-        alert("Salvo!");
-    }
-
-    function abrirHistorico() {
-        const l = document.getElementById('listaHistorico');
-        const h = JSON.parse(localStorage.getItem('nek_hist') || "[]");
-        l.innerHTML = h.map(p => `<div style="padding:10px; border-bottom:1px solid #eee"><b>${p.data}</b> - ${p.cliente} - <span style="color:green">${p.total}</span></div>`).join('');
-        document.getElementById('modalHistory').style.display = 'block';
-    }
-
-    function fecharHistorico() { document.getElementById('modalHistory').style.display = 'none'; }
-    function limparPedido() { if(confirm('Limpar tela?')) location.reload(); }
-
+    carregarClientes();
     carregarProdutos();
 </script>
 </body>
