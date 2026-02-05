@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.47</title>
+    <title>NEK - Sistema de Pedidos v21.57</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; --dark: #34495e; }
@@ -17,47 +17,40 @@
         .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; position: relative; }
         .full-width { grid-column: span 4; }
         
-        .autocomplete-suggestions { position: absolute; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; max-height: 200px; overflow-y: auto; width: 38%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .autocomplete-suggestion { padding: 10px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #eee; }
+        .autocomplete-suggestions { position: absolute; background: white; border: 1px solid #ccc; z-index: 1000; max-height: 200px; overflow-y: auto; width: 38%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .autocomplete-suggestion { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 13px; }
         .autocomplete-suggestion:hover { background: #f0f0f0; }
 
-        input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
-        #cnpjBusca.valido { background-color: #d4edda !important; border: 2px solid #27ae60 !important; }
-        
         .total-header-box { background: #eafaf1; border: 2px solid var(--green); border-radius: 8px; padding: 8px; text-align: center; height: 38px; display: flex; flex-direction: column; justify-content: center; }
         .total-header-value { font-size: 20px; font-weight: 800; color: #1b5e20; }
         
         .box-search { background: var(--yellow); padding: 12px; border: 1px solid #f1c40f; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         label { display: block; font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
-        input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
+        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
         
-        .table-container { max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: var(--blue); color: white; padding: 8px 4px; text-align: left; position: sticky; top: 0; z-index: 10; font-size: 10px; text-transform: uppercase; }
-        td { padding: 6px 4px; border-bottom: 1px solid #eee; font-size: 12px; }
+        /* --- ESTILO DAS COLUNAS v21.45 --- */
+        .table-container { max-height: 450px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { padding: 8px 6px; border-bottom: 1px solid #eee; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        th { background: var(--blue); color: white; position: sticky; top: 0; z-index: 10; font-size: 11px; text-transform: uppercase; }
 
-        .col-qtd { width: 60px; text-align: center; }
-        .input-qtd, .input-desc { width: 100%; font-weight: bold; text-align: center; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; }
+        .col-cod { width: 11%; }
+        .col-desc { width: 32%; }
+        .col-un { width: 5%; text-align: center; }
+        .col-vlr { width: 10%; text-align: center; }
+        .col-qtd { width: 7%; text-align: center; }
+        .col-desc-p { width: 7%; text-align: center; }
+        .col-tot { width: 9%; text-align: right; }
+
+        .input-qtd, .input-desc { width: 85%; font-weight: bold; text-align: center; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; font-size: 13px; }
         
         .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 2px solid #eee; padding-top: 15px; flex-wrap: wrap; }
         .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 12px; color: white; }
-        .btn-csv { background: var(--green); }
-        .btn-print { background: #555; }
-        .btn-zip { background: var(--purple); }
-        .btn-clear { background: var(--red); }
-        .btn-history { background: var(--dark); }
-        .btn-save-local { background: var(--accent); }
+        
+        .footer-tag { text-align: right; font-size: 11px; color: #aaa; margin-top: 10px; font-weight: bold; }
 
-        /* Estilos do Modal de Histórico */
-        #modalHistory { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); }
-        .modal-content { background: white; margin: 5% auto; padding: 20px; width: 80%; max-width: 900px; border-radius: 10px; max-height: 80vh; overflow-y: auto; }
-        .history-item { display: grid; grid-template-columns: 1fr 3fr 1fr 1fr; gap: 10px; padding: 10px; border-bottom: 1px solid #eee; align-items: center; }
-        .history-item:hover { background: #f9f9f9; }
-
-        .print-text { display: none; }
         @media print {
-            .box-search, .actions-footer, .btn, .status-sync, .autocomplete-suggestions, #cnpjBusca { display: none !important; }
-            .print-text { display: block !important; }
+            .box-search, .actions-footer, .btn, .status-sync, #cnpjBusca, .autocomplete-suggestions { display: none !important; }
             tbody tr { display: none !important; }
             tbody tr.has-qty { display: table-row !important; }
         }
@@ -71,39 +64,38 @@
             <h2 style="margin:0; color:var(--blue);">🚲 NEK - Orçamento de Pedido</h2>
             <div id="syncStatus" class="status-sync">⏳ Conectando...</div>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <button class="btn btn-history" onclick="abrirHistorico()">📂 Ver Pedidos Salvos</button>
-            <div id="data-atual" style="font-weight: bold;"></div>
-        </div>
+        <div id="data-atual" style="font-weight: bold;"></div>
     </div>
 
     <div class="cliente-grid">
         <div style="grid-column: span 2; position: relative;">
             <label>Razão Social</label>
-            <input type="text" id="razaoSocial" autocomplete="off" placeholder="Busca interna...">
+            <input type="text" id="razaoSocial" autocomplete="off" placeholder="Pesquisar cliente...">
             <div id="sugestoes" class="autocomplete-suggestions"></div>
-            <span class="print-text" id="p-razao"></span>
         </div>
-        <div><label>CNPJ</label><input type="text" id="cnpjCadastrado" readonly><span class="print-text" id="p-cnpj-cad"></span></div>
-        <div><label>Consulta Externo</label><input type="text" id="cnpjBusca" maxlength="18" placeholder="00...-00"></div>
-        <div style="grid-column: span 2;"><label>Endereço de Entrega</label><input type="text" id="endereco"><span class="print-text" id="p-end"></span></div>
-        <div><label>Nome do Contato</label><input type="text" id="nomeContato"><span class="print-text" id="p-contato"></span></div>
-        <div><label>Telefone</label><input type="text" id="telefone" maxlength="15"><span class="print-text" id="p-tel"></span></div>
+        <div><label>CNPJ</label><input type="text" id="cnpjCadastrado"></div>
+        <div><label>Busca Externo CNPJ</label><input type="text" id="cnpjBusca" placeholder="00.000.000/0001-00"></div>
+        <div style="grid-column: span 2;"><label>Endereço</label><input type="text" id="endereco"></div>
+        <div><label>Contato</label><input type="text" id="nomeContato"></div>
+        <div><label>Telefone</label><input type="text" id="telefone"></div>
         <div class="full-width"><div class="total-header-box"><div class="total-header-value" id="headerTotalGeral">R$ 0,000</div></div></div>
     </div>
 
-    <div class="box-search"><input type="text" id="inputBusca" placeholder="Pesquisar produto..."></div>
-    <div style="margin-top: 10px;">
-        <label>Observações do Pedido</label>
-        <textarea id="obsVenda" rows="2"></textarea>
-        <div class="print-text" id="p-obs"></div>
-    </div>
+    <div class="box-search"><input type="text" id="inputBusca" placeholder="Pesquisar por código ou descrição..."></div>
 
     <div class="table-container">
         <table>
             <thead>
                 <tr>
-                    <th>Código</th><th>Descrição</th><th>UN</th><th>Vlr S/ IPI</th><th>Vlr C/ IPI</th><th>Qtd</th><th>D%</th><th>Tot S/ IPI</th><th>Tot C/ IPI</th>
+                    <th class="col-cod">Código</th>
+                    <th class="col-desc">Descrição</th>
+                    <th class="col-un">UN</th>
+                    <th class="col-vlr">Vlr S/ IPI</th>
+                    <th class="col-vlr">Vlr C/ IPI</th>
+                    <th class="col-qtd">Qtd</th>
+                    <th class="col-desc-p">D%</th>
+                    <th class="col-tot">Tot S/ IPI</th>
+                    <th class="col-tot">Tot C/ IPI</th>
                 </tr>
             </thead>
             <tbody id="corpoTabela"></tbody>
@@ -111,221 +103,159 @@
     </div>
 
     <div class="actions-footer">
-        <button class="btn btn-clear" onclick="limparPedido()">🗑️ Limpar Atual</button>
-        <button class="btn btn-save-local" onclick="arquivarPedido()">💾 Salvar no Histórico</button>
-        <button class="btn btn-print" onclick="imprimirPDF()">🖨️ Imprimir</button>
-        <button class="btn btn-csv" onclick="exportarCSV()">📄 Exportar CSV</button>
-        <button class="btn btn-zip" onclick="baixarZIP()">📦 Baixar ZIP</button>
+        <button class="btn" style="background:var(--red)" onclick="location.reload()">🗑️ Limpar Pedido</button>
+        <button class="btn" style="background:var(--dark)" onclick="window.print()">🖨️ Imprimir PDF</button>
+        <button class="btn" style="background:var(--purple)" onclick="baixarZIP()">📦 Baixar Arquivo ZIP</button>
     </div>
-</div>
-
-<div id="modalHistory">
-    <div class="modal-content">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--blue); padding-bottom:10px; margin-bottom:15px;">
-            <h3>📋 Pedidos Arquivados (LocalStorage)</h3>
-            <button class="btn btn-clear" onclick="fecharHistorico()">Fechar</button>
-        </div>
-        <div id="listaHistorico"></div>
-    </div>
+    <div class="footer-tag">Versão do Sistema: 21.57</div>
 </div>
 
 <script>
-    const SHEET_PRODUTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRnUPgmknCzn9EeUSo3y0UfAe0FtGeTCWNZwhE9TxgdLhIQtPglMuoN-xEcWvHiQPzSqf_UQH7C88TP/pub?output=csv';
-    const SHEET_CLIENTES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQYCLsgEtBzLW7931ivMquRWiwRl9twob9MOnuuQAA5MtukdGVOQPsJJiWsSlzlFZDzKpmj3nRAOoRJ/pub?output=csv';
-    let listaClientes = [];
+    const URL_PRODUTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRnUPgmknCzn9EeUSo3y0UfAe0FtGeTCWNZwhE9TxgdLhIQtPglMuoN-xEcWvHiQPzSqf_UQH7C88TP/pub?output=csv';
+    const URL_CLIENTES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQYCLsgEtBzLW7931ivMquRWiwRl9twob9MOnuuQAA5MtukdGVOQPsJJiWsSlzlFZDzKpmj3nRAOoRJ/pub?output=csv';
     
+    let listaClientes = [];
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
-    // --- GESTÃO DE DADOS ---
-    function capturarEstadoAtual() {
-        const itens = [];
-        document.querySelectorAll('tr.has-qty').forEach(tr => {
-            itens.push({
-                codB: tr.dataset.codB,
-                qtd: tr.querySelector('.input-qtd').value,
-                desc: tr.querySelector('.input-desc').value
-            });
-        });
-        return {
-            id: Date.now(),
-            data: new Date().toLocaleString('pt-BR'),
-            total: document.getElementById('headerTotalGeral').innerText,
-            cliente: {
-                razao: document.getElementById('razaoSocial').value,
-                cnpjCad: document.getElementById('cnpjCadastrado').value,
-                cnpjBusca: document.getElementById('cnpjBusca').value,
-                endereco: document.getElementById('endereco').value,
-                contato: document.getElementById('nomeContato').value,
-                telefone: document.getElementById('telefone').value,
-                obs: document.getElementById('obsVenda').value
-            },
-            itens: itens
-        };
-    }
-
-    function salvarBackup() {
-        localStorage.setItem('nek_pedido_backup', JSON.stringify(capturarEstadoAtual()));
-    }
-
-    function arquivarPedido() {
-        const pedido = capturarEstadoAtual();
-        if(pedido.itens.length === 0) return alert("Adicione produtos primeiro!");
-        let historico = JSON.parse(localStorage.getItem('nek_historico_pedidos') || "[]");
-        historico.unshift(pedido);
-        localStorage.setItem('nek_historico_pedidos', JSON.stringify(historico.slice(0, 50))); // Guarda os últimos 50
-        alert("Pedido salvo com sucesso no histórico local!");
-    }
-
-    function abrirHistorico() {
-        const lista = document.getElementById('listaHistorico');
-        const historico = JSON.parse(localStorage.getItem('nek_historico_pedidos') || "[]");
-        lista.innerHTML = historico.length ? "" : "<p>Nenhum pedido salvo.</p>";
-        
-        historico.forEach(p => {
-            const div = document.createElement('div');
-            div.className = 'history-item';
-            div.innerHTML = `
-                <small>${p.data}</small>
-                <strong>${p.cliente.razao || 'Sem Nome'}</strong>
-                <span style="color:var(--green)">${p.total}</span>
-                <div style="display:flex; gap:5px;">
-                    <button class="btn btn-save-local" style="padding:5px" onclick="carregarPedidoHist(${p.id})">Abrir</button>
-                    <button class="btn btn-clear" style="padding:5px" onclick="excluirHist(${p.id})">X</button>
-                </div>
-            `;
-            lista.appendChild(div);
-        });
-        document.getElementById('modalHistory').style.display = 'block';
-    }
-
-    function carregarPedidoHist(id) {
-        const historico = JSON.parse(localStorage.getItem('nek_historico_pedidos') || "[]");
-        const pedido = historico.find(p => p.id === id);
-        if(pedido && confirm('Isso substituirá o pedido atual na tela. Continuar?')) {
-            localStorage.setItem('nek_pedido_backup', JSON.stringify(pedido));
-            location.reload();
-        }
-    }
-
-    function excluirHist(id) {
-        if(confirm('Excluir este pedido permanentemente?')) {
-            let historico = JSON.parse(localStorage.getItem('nek_historico_pedidos') || "[]");
-            historico = historico.filter(p => p.id !== id);
-            localStorage.setItem('nek_historico_pedidos', JSON.stringify(historico));
-            abrirHistorico();
-        }
-    }
-
-    function fecharHistorico() { document.getElementById('modalHistory').style.display = 'none'; }
-
-    function limparPedido() {
-        if(confirm('Limpar tela e apagar backup automático?')) {
-            localStorage.removeItem('nek_pedido_backup');
-            location.reload();
-        }
-    }
-
-    // --- LÓGICA CORE (MESMA DA v21.46) ---
-    function aplicarMascaraCNPJ(v) { v = v.replace(/\D/g, "").substring(0,14); return v.replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d)/, "$1-$2"); }
-    function parseCSVLine(line) { const result = []; let cur = ''; let inQuote = false; for (let i = 0; i < line.length; i++) { const char = line[i]; if (char === '"') inQuote = !inQuote; else if (char === ',' && !inQuote) { result.push(cur.trim()); cur = ''; } else cur += char; } result.push(cur.trim()); return result; }
-
-    async function carregarProdutos() {
-        const backup = JSON.parse(localStorage.getItem('nek_pedido_backup') || "null");
-        const itensSalvos = backup ? backup.itens : [];
-        if(backup) { // Restaura cabeçalho
-            document.getElementById('razaoSocial').value = backup.cliente.razao || "";
-            document.getElementById('cnpjCadastrado').value = backup.cliente.cnpjCad || "";
-            document.getElementById('cnpjBusca').value = backup.cliente.cnpjBusca || "";
-            document.getElementById('endereco').value = backup.cliente.endereco || "";
-            document.getElementById('nomeContato').value = backup.cliente.contato || "";
-            document.getElementById('telefone').value = backup.cliente.telefone || "";
-            document.getElementById('obsVenda').value = backup.cliente.obs || "";
-        }
+    // --- CONSULTA CNPJ EXTERNA ---
+    document.getElementById('cnpjBusca').addEventListener('blur', async function() {
+        const cnpj = this.value.replace(/\D/g, '');
+        if (cnpj.length !== 14) return;
         try {
-            const r = await fetch(SHEET_PRODUTOS);
+            const r = await fetch(`https://publica.cnpj.ws/cnpj/${cnpj}`);
+            const d = await r.json();
+            document.getElementById('razaoSocial').value = d.razao_social;
+            document.getElementById('endereco').value = `${d.estabelecimento.tipo_logradouro} ${d.estabelecimento.logradouro}, ${d.estabelecimento.numero}`;
+            document.getElementById('cnpjCadastrado').value = cnpj;
+        } catch (e) { alert("CNPJ não encontrado na base externa."); }
+    });
+
+    // --- CLIENTES INTERNOS ---
+    async function carregarClientes() {
+        try {
+            const r = await fetch(URL_CLIENTES);
+            const t = await r.text();
+            const linhas = t.split(/\r?\n/);
+            listaClientes = linhas.map(l => {
+                const c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                return { nome: c[0]?.replace(/"/g,''), cnpj: c[1], end: c[2], tel: c[3], cont: c[4] };
+            });
+        } catch(e) { console.error("Erro ao carregar clientes"); }
+    }
+
+    document.getElementById('razaoSocial').addEventListener('input', function() {
+        const busca = this.value.toLowerCase();
+        const sug = document.getElementById('sugestoes');
+        sug.innerHTML = '';
+        if (busca.length < 2) return;
+        const filtrados = listaClientes.filter(c => c.nome && c.nome.toLowerCase().includes(busca)).slice(0, 5);
+        filtrados.forEach(c => {
+            const d = document.createElement('div');
+            d.className = 'autocomplete-suggestion';
+            d.innerText = c.nome;
+            d.onclick = () => {
+                document.getElementById('razaoSocial').value = c.nome;
+                document.getElementById('cnpjCadastrado').value = c.cnpj || '';
+                document.getElementById('endereco').value = c.end || '';
+                document.getElementById('telefone').value = c.tel || '';
+                document.getElementById('nomeContato').value = c.cont || '';
+                sug.innerHTML = '';
+            };
+            sug.appendChild(d);
+        });
+    });
+
+    // --- PRODUTOS ---
+    async function carregarProdutos() {
+        try {
+            const r = await fetch(URL_PRODUTOS);
             const txt = await r.text();
             const linhas = txt.split(/\r?\n/);
             const tb = document.getElementById('corpoTabela');
-            const limparNum = (v) => { if(!v) return 0; let n = v.replace(/[^\d,.-]/g, '').trim(); if (n.includes(',') && n.includes('.')) n = n.replace(/\./g, '').replace(',', '.'); else n = n.replace(',', '.'); return parseFloat(n) || 0; };
             
             linhas.forEach((l, i) => {
                 if (i === 0 || !l) return;
-                let c = parseCSVLine(l); if (c.length < 5) return;
-                const vE = limparNum(c[4]), vG = limparNum(c[6]), codB = c[1];
-                const itemBackup = itensSalvos.find(it => it.codB === codB);
-                const q = itemBackup ? itemBackup.qtd : 0, d = itemBackup ? itemBackup.desc : 0;
+                let c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
+                const vE = parseFloat(c[4]) || 0, vG = parseFloat(c[6]) || 0;
                 const tr = document.createElement('tr');
-                tr.dataset.valE = vE; tr.dataset.valG = vG; tr.dataset.codB = codB;
+                tr.dataset.valE = vE; tr.dataset.valG = vG; tr.dataset.codB = c[1];
                 tr.dataset.search = (c[0]+c[1]+c[3]).toLowerCase();
-                if(q > 0) tr.classList.add('has-qty');
-                tr.innerHTML = `<td class="col-cod">${c[0]}/${c[1]}</td><td>${c[3]}</td><td>${c[2]}</td>
-                    <td align="right">R$ ${vE.toFixed(3).replace('.',',')}</td><td align="right">R$ ${vG.toFixed(3).replace('.',',')}</td>
-                    <td class="col-qtd"><input type="number" class="input-qtd" value="${q}" oninput="atu(this)" onfocus="this.select()"></td>
-                    <td class="col-qtd"><input type="number" class="input-desc" value="${d}" oninput="atu(this)" onfocus="this.select()"></td>
-                    <td align="right">R$ 0,000</td><td align="right">R$ 0,000</td>`;
+                
+                tr.innerHTML = `<td class="col-cod">${c[0]} / ${c[1]}</td><td class="col-desc">${c[3]}</td><td class="col-un">${c[2]}</td>
+                    <td class="col-vlr">R$ ${vE.toFixed(3).replace('.',',')}</td><td class="col-vlr">R$ ${vG.toFixed(3).replace('.',',')}</td>
+                    <td class="col-qtd"><input type="number" class="input-qtd" value="0" oninput="atu(this)"></td>
+                    <td class="col-desc-p"><input type="number" class="input-desc" value="0" oninput="atu(this)"></td>
+                    <td class="col-tot">R$ 0,000</td><td class="col-tot">R$ 0,000</td>`;
                 tb.appendChild(tr);
-                if(q > 0) atu(tr.querySelector('.input-qtd'));
             });
-            document.getElementById('syncStatus').innerText = "✅ Sincronizado";
+            document.getElementById('syncStatus').innerText = "✅ Banco de Dados OK";
             document.getElementById('syncStatus').className = "status-sync sync-success";
-        } catch(e) { document.getElementById('syncStatus').innerText = "❌ Erro"; }
+        } catch(e) { document.getElementById('syncStatus').innerText = "❌ Erro ao carregar"; }
     }
 
     function atu(el) {
         const tr = el.closest('tr');
         const q = parseFloat(tr.querySelector('.input-qtd').value) || 0, d = parseFloat(tr.querySelector('.input-desc').value) || 0;
-        if (q > 0) tr.classList.add('has-qty'); else tr.classList.remove('has-qty');
+        q > 0 ? tr.classList.add('has-qty') : tr.classList.remove('has-qty');
         const vE = parseFloat(tr.dataset.valE), vG = parseFloat(tr.dataset.valG);
         tr.cells[7].innerText = "R$ " + ((vE * q) * (1 - (d/100))).toFixed(3).replace('.',',');
         tr.cells[8].innerText = "R$ " + ((vG * q) * (1 - (d/100))).toFixed(3).replace('.',',');
-        let tot = 0;
+        let total = 0;
         document.querySelectorAll('tr.has-qty').forEach(t => {
-            const tq = parseFloat(t.querySelector('.input-qtd').value) || 0, td = parseFloat(t.querySelector('.input-desc').value) || 0;
-            tot += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
+            const tq = parseFloat(t.querySelector('.input-qtd').value), td = parseFloat(t.querySelector('.input-desc').value);
+            total += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
         });
-        document.getElementById('headerTotalGeral').innerText = "R$ " + tot.toFixed(3).replace('.',',');
-        salvarBackup();
+        document.getElementById('headerTotalGeral').innerText = "R$ " + total.toFixed(3).replace('.',',');
     }
 
-    // Exportações, Mascaras e Buscas mantidas da v21.46
+    // --- ZIP E RELATÓRIO ---
+    async function baixarZIP() {
+        const zip = new JSZip();
+        const nomeCli = document.getElementById('razaoSocial').value || 'NEK_ORCAMENTO';
+        
+        // CSV de Importação
+        let csv = "CD_PRODUTO;QUANTIDADE;DESCONTO\n";
+        // TXT de Resumo
+        let txt = `NEK SISTEMAS - RESUMO DO PEDIDO\n`;
+        txt += `-------------------------------------------\n`;
+        txt += `Cliente: ${nomeCli}\n`;
+        txt += `CNPJ: ${document.getElementById('cnpjCadastrado').value}\n`;
+        txt += `Endereço: ${document.getElementById('endereco').value}\n`;
+        txt += `Data: ${new Date().toLocaleString()}\n`;
+        txt += `-------------------------------------------\n\n`;
+        txt += `PRODUTOS:\n`;
+
+        let itensValidos = 0;
+        document.querySelectorAll('tr.has-qty').forEach(tr => {
+            const q = tr.querySelector('.input-qtd').value;
+            const d = tr.querySelector('.input-desc').value;
+            csv += `${tr.dataset.codB};${q};${d}\n`;
+            txt += `- ${tr.cells[0].innerText} | ${tr.cells[1].innerText} | Qtd: ${q} | Desc: ${d}%\n`;
+            itensValidos++;
+        });
+
+        if(itensValidos === 0) return alert("Adicione pelo menos um produto!");
+
+        txt += `\n-------------------------------------------\n`;
+        txt += `TOTAL DO PEDIDO: ${document.getElementById('headerTotalGeral').innerText}\n`;
+
+        zip.file("IMPORTAR_SISTEMA.csv", "\ufeff" + csv);
+        zip.file("RESUMO_PEDIDO.txt", txt);
+        
+        const content = await zip.generateAsync({type:"blob"});
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(content);
+        link.download = `${nomeCli.substring(0,20)}.zip`;
+        link.click();
+    }
+
     document.getElementById('inputBusca').onkeyup = function() {
         const f = this.value.toLowerCase();
         document.querySelectorAll('#corpoTabela tr').forEach(tr => tr.style.display = tr.dataset.search.includes(f) ? "" : "none");
     };
 
-    ['razaoSocial','cnpjBusca','endereco','nomeContato','telefone','obsVenda'].forEach(id => {
-        document.getElementById(id).addEventListener('input', salvarBackup);
-    });
-
-    // Funções auxiliares (CSV, ZIP, Print) seguem a mesma lógica v21.46
-    function exportarCSV() {
-        let csv = "CD_PRODUTO;QUANTIDADE;VL_UNITARIO\n";
-        document.querySelectorAll('tr.has-qty').forEach(tr => {
-            const v = (parseFloat(tr.dataset.valE) * (1 - (tr.querySelector('.input-desc').value/100))).toFixed(3).replace('.', ',');
-            csv += `${tr.dataset.codB};${tr.querySelector('.input-qtd').value};${v}\n`;
-        });
-        const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
-        link.download = `PEDIDO_${(document.getElementById('razaoSocial').value || 'AVULSO').replace(/\s+/g, '_')}.csv`; link.click();
-    }
-
-    async function baixarZIP() {
-        const zip = new JSZip(); const r = (document.getElementById('razaoSocial').value || 'AVULSO').replace(/\s+/g, '_');
-        zip.file(`IMPORTAR_${r}.csv`, "..."); // Reutilizar lógica de CSV
-        const content = await zip.generateAsync({type:"blob"});
-        const link = document.createElement("a"); link.href = URL.createObjectURL(content); link.download = `PEDIDO_${r}.zip`; link.click();
-    }
-
-    function imprimirPDF() {
-        ['razaoSocial','nomeContato','telefone','endereco','cnpjCadastrado','obsVenda'].forEach(id => {
-            let pId = id === 'razaoSocial' ? 'p-razao' : (id === 'nomeContato' ? 'p-contato' : (id === 'telefone' ? 'p-tel' : (id === 'endereco' ? 'p-end' : (id === 'cnpjCadastrado' ? 'p-cnpj-cad' : 'p-obs'))));
-            document.getElementById(pId).innerText = document.getElementById(id).value;
-        });
-        window.print();
-    }
-
+    carregarClientes();
     carregarProdutos();
-    // carregarClientes omitido para brevidade, mas segue a lógica anterior
 </script>
 </body>
 </html>
