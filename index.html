@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.60</title>
+    <title>NEK - Sistema de Pedidos v21.61</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; --dark: #34495e; }
@@ -28,25 +28,19 @@
         label { display: block; font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
         input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
         
-        /* Layout Fixo v21.45/47 */
         .table-container { max-height: 450px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th, td { padding: 8px 6px; border-bottom: 1px solid #eee; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         th { background: var(--blue); color: white; position: sticky; top: 0; z-index: 10; font-size: 11px; text-transform: uppercase; text-align: left; }
 
-        .col-cod { width: 11%; }
-        .col-desc { width: 32%; }
-        .col-un { width: 5%; text-align: center; }
-        .col-vlr { width: 10%; text-align: center; }
-        .col-qtd { width: 7%; text-align: center; }
-        .col-desc-p { width: 7%; text-align: center; }
-        .col-tot { width: 9%; text-align: right; }
+        .col-cod { width: 11%; } .col-desc { width: 32%; } .col-un { width: 5%; text-align: center; }
+        .col-vlr { width: 10%; text-align: center; } .col-qtd { width: 7%; text-align: center; }
+        .col-desc-p { width: 7%; text-align: center; } .col-tot { width: 9%; text-align: right; }
 
         .input-qtd, .input-desc { width: 85%; font-weight: bold; text-align: center; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; font-size: 13px; }
         
         .actions-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 2px solid #eee; padding-top: 15px; }
         .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 12px; color: white; }
-        
         .footer-tag { text-align: right; font-size: 11px; color: #aaa; margin-top: 10px; font-weight: bold; }
 
         @media print {
@@ -69,12 +63,12 @@
 
     <div class="cliente-grid">
         <div style="grid-column: span 2; position: relative;">
-            <label>Razão Social</label>
+            <label>Razão Social (Auto-complete)</label>
             <input type="text" id="razaoSocial" autocomplete="off" oninput="salvarLocalStorage()">
             <div id="sugestoes" class="autocomplete-suggestions"></div>
         </div>
-        <div><label>CNPJ</label><input type="text" id="cnpjCadastrado" oninput="salvarLocalStorage()"></div>
-        <div><label>Busca Externo CNPJ</label><input type="text" id="cnpjBusca" placeholder="Apenas números"></div>
+        <div><label>CNPJ Cadastrado</label><input type="text" id="cnpjCadastrado" oninput="salvarLocalStorage()"></div>
+        <div><label>Consultar Novo CNPJ</label><input type="text" id="cnpjBusca" placeholder="00000000000000"></div>
         <div style="grid-column: span 2;"><label>Endereço</label><input type="text" id="endereco" oninput="salvarLocalStorage()"></div>
         <div><label>Contato</label><input type="text" id="nomeContato" oninput="salvarLocalStorage()"></div>
         <div><label>Telefone</label><input type="text" id="telefone" oninput="salvarLocalStorage()"></div>
@@ -103,11 +97,11 @@
     </div>
 
     <div class="actions-footer">
-        <button class="btn" style="background:var(--red)" onclick="limparPedido()">🗑️ Limpar Pedido</button>
-        <button class="btn" style="background:var(--dark)" onclick="window.print()">🖨️ Imprimir PDF</button>
-        <button class="btn" style="background:var(--purple)" onclick="baixarZIP()">📦 Baixar Arquivo ZIP</button>
+        <button class="btn" style="background:var(--red)" onclick="limparPedido()">🗑️ Limpar</button>
+        <button class="btn" style="background:var(--dark)" onclick="window.print()">🖨️ Imprimir</button>
+        <button class="btn" style="background:var(--purple)" onclick="baixarZIP()">📦 Baixar ZIP</button>
     </div>
-    <div class="footer-tag">Versão: 21.60 | Estabilidade de Dados</div>
+    <div class="footer-tag">Versão: 21.61 | Correção de Preços CSV</div>
 </div>
 
 <script>
@@ -116,26 +110,22 @@
     
     let listaClientes = [];
 
-    // Função para limpar e converter números do CSV (Lida com R$, pontos e vírgulas)
-    function limparNumero(valor) {
+    // Função de limpeza de números ultra-resistente
+    function parseMoeda(valor) {
         if (!valor) return 0;
-        let limpo = valor.toString().replace('R$', '').replace(/\s/g, '').trim();
-        if (limpo.includes(',') && limpo.includes('.')) {
-            limpo = limpo.replace(/\./g, '').replace(',', '.');
-        } else {
-            limpo = limpo.replace(',', '.');
-        }
-        return parseFloat(limpo) || 0;
+        // Remove R$, espaços e converte vírgula decimal em ponto
+        let s = valor.toString().replace('R$', '').replace(/\s/g, '').trim();
+        // Se o formato for 1.234,56, remove o ponto do milhar e troca a vírgula
+        if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.');
+        else s = s.replace(',', '.');
+        return parseFloat(s) || 0;
     }
 
+    // --- LOCAL STORAGE ---
     function salvarLocalStorage() {
         const itens = [];
         document.querySelectorAll('tr.has-qty').forEach(tr => {
-            itens.push({
-                c: tr.dataset.codB,
-                q: tr.querySelector('.input-qtd').value,
-                d: tr.querySelector('.input-desc').value
-            });
+            itens.push({ c: tr.dataset.codB, q: tr.querySelector('.input-qtd').value, d: tr.querySelector('.input-desc').value });
         });
         localStorage.setItem('nek_save_v21', JSON.stringify({
             razao: document.getElementById('razaoSocial').value,
@@ -147,23 +137,18 @@
         }));
     }
 
-    function limparPedido() {
-        if(confirm("Apagar pedido atual?")) { localStorage.removeItem('nek_save_v21'); location.reload(); }
-    }
+    function limparPedido() { if(confirm("Limpar pedido?")) { localStorage.removeItem('nek_save_v21'); location.reload(); } }
 
+    // --- CALCULOS ---
     function atu(el, salvar = true) {
         const tr = el.closest('tr');
         const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
         const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
-        
         q > 0 ? tr.classList.add('has-qty') : tr.classList.remove('has-qty');
-        
         const vE = parseFloat(tr.dataset.valE) || 0;
         const vG = parseFloat(tr.dataset.valG) || 0;
-        
         tr.cells[7].innerText = "R$ " + ((vE * q) * (1 - (d/100))).toFixed(3).replace('.',',');
         tr.cells[8].innerText = "R$ " + ((vG * q) * (1 - (d/100))).toFixed(3).replace('.',',');
-        
         let total = 0;
         document.querySelectorAll('tr.has-qty').forEach(t => {
             total += (parseFloat(t.dataset.valG) * (parseFloat(t.querySelector('.input-qtd').value) || 0)) * (1 - ((parseFloat(t.querySelector('.input-desc').value) || 0)/100));
@@ -172,6 +157,7 @@
         if(salvar) salvarLocalStorage();
     }
 
+    // --- CARREGAMENTO DE PRODUTOS ---
     async function carregarProdutos() {
         const backup = JSON.parse(localStorage.getItem('nek_save_v21') || "null");
         if(backup) {
@@ -183,19 +169,20 @@
         }
 
         try {
-            const r = await fetch(URL_PRODUTOS);
-            const txt = await r.text();
-            const linhas = txt.split(/\r?\n/);
-            const tb = document.getElementById('corpoTabela');
+            const response = await fetch(URL_PRODUTOS);
+            const data = await response.text();
+            const rows = data.split(/\r?\n/);
+            const tbody = document.getElementById('corpoTabela');
             
-            linhas.forEach((l, i) => {
-                if (i === 0 || !l) return;
-                let c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
+            rows.forEach((row, i) => {
+                if (i === 0 || !row) return;
+                // Split que respeita aspas (para descrições com vírgula)
+                let cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
                 
-                // Scanner de Preços Robusto
-                const vE = limparNumero(c[4]);
-                const vG = limparNumero(c[6]);
-                const codB = c[1];
+                // Mapeamento forçado: E=4, G=6
+                const vE = parseMoeda(cols[4]);
+                const vG = parseMoeda(cols[6]);
+                const codB = cols[1] ? cols[1].replace(/"/g, '') : '';
                 
                 const itS = backup ? backup.itens.find(it => it.c === codB) : null;
                 const q = itS ? itS.q : 0;
@@ -205,22 +192,21 @@
                 tr.dataset.valE = vE; 
                 tr.dataset.valG = vG; 
                 tr.dataset.codB = codB;
-                tr.dataset.search = (c[0]+c[1]+c[3]).toLowerCase();
+                tr.dataset.search = (cols[0]+cols[1]+cols[3]).toLowerCase();
                 
-                tr.innerHTML = `<td class="col-cod">${c[0]} / ${c[1]}</td><td class="col-desc">${c[3]}</td><td class="col-un">${c[2]}</td>
+                tr.innerHTML = `<td class="col-cod">${cols[0]} / ${codB}</td><td class="col-desc">${cols[3]}</td><td class="col-un">${cols[2]}</td>
                     <td class="col-vlr">R$ ${vE.toFixed(3).replace('.',',')}</td><td class="col-vlr">R$ ${vG.toFixed(3).replace('.',',')}</td>
                     <td class="col-qtd"><input type="number" class="input-qtd" value="${q}" oninput="atu(this)"></td>
                     <td class="col-desc-p"><input type="number" class="input-desc" value="${d}" oninput="atu(this)"></td>
                     <td class="col-tot">R$ 0,000</td><td class="col-tot">R$ 0,000</td>`;
-                tb.appendChild(tr);
+                tbody.appendChild(tr);
                 if(q > 0) { tr.classList.add('has-qty'); atu(tr.querySelector('.input-qtd'), false); }
             });
-            document.getElementById('syncStatus').innerText = "✅ Banco de Dados OK";
-            document.getElementById('syncStatus').className = "status-sync sync-success";
+            document.getElementById('syncStatus').innerText = "✅ Produtos Carregados";
         } catch(e) { document.getElementById('syncStatus').innerText = "❌ Erro na Planilha"; }
     }
 
-    // --- CLIENTES ---
+    // --- CLIENTES E CNPJ ---
     async function carregarClientes() {
         try {
             const r = await fetch(URL_CLIENTES);
@@ -249,8 +235,7 @@
                 document.getElementById('endereco').value = c.end || '';
                 document.getElementById('telefone').value = c.tel || '';
                 document.getElementById('nomeContato').value = c.cont || '';
-                sug.innerHTML = '';
-                salvarLocalStorage();
+                sug.innerHTML = ''; salvarLocalStorage();
             };
             sug.appendChild(d);
         });
@@ -274,17 +259,17 @@
         const zip = new JSZip();
         const n = document.getElementById('razaoSocial').value || 'ORCAMENTO';
         let csv = "CD_PRODUTO;QUANTIDADE;DESCONTO\n";
-        let txt = `NEK SISTEMAS - RESUMO DO PEDIDO\nCliente: ${n}\nCNPJ: ${document.getElementById('cnpjCadastrado').value}\n\nITENS:\n`;
+        let txt = `NEK SISTEMAS - RESUMO DO PEDIDO\n\nCliente: ${n}\nCNPJ: ${document.getElementById('cnpjCadastrado').value}\nData: ${new Date().toLocaleString()}\n\nITENS:\n`;
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value, d = tr.querySelector('.input-desc').value;
             csv += `${tr.dataset.codB};${q};${d}\n`;
             txt += `- ${tr.cells[1].innerText} | Qtd: ${q} | Desc: ${d}%\n`;
         });
         zip.file("IMPORTAR.csv", "\ufeff" + csv);
-        zip.file("RESUMO.txt", txt);
+        zip.file("RESUMO_PEDIDO.txt", txt);
         const b = await zip.generateAsync({type:"blob"});
         const l = document.createElement("a"); l.href = URL.createObjectURL(b);
-        l.download = `${n}.zip`; l.click();
+        l.download = `${n.substring(0,15)}.zip`; l.click();
     }
 
     document.getElementById('inputBusca').onkeyup = function() {
