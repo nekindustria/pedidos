@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v3.0 (RESET)</title>
+    <title>NEK - Sistema de Pedidos v3.0-LS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; }
@@ -144,8 +144,8 @@
         <button class="btn btn-zip" onclick="baixarZIP()">📦 Baixar ZIP (Completo)</button>
     </div>
 
-    <div style="text-align: center; font-size: 10px; color: #999; margin-top: 20px;">
-        SISTEMA NEK PEDIDOS | <strong>VERSÃO 21.45-STABLE</strong> | 2026
+    <div style="text-align: center; font-size: 10px; color: #999; margin-top: 20px;" class="version-footer">
+        SISTEMA NEK PEDIDOS | <strong>VERSÃO 3.0-LS</strong> | 2026
     </div>
 </div>
 
@@ -156,7 +156,7 @@
     let listaClientes = [];
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
-    // --- FUNÇÕES DE LIMPEZA E FORMATAÇÃO ---
+    // --- FUNÇÕES AUXILIARES ---
     function aplicarMascaraCNPJ(v) {
         v = v.replace(/\D/g, "").substring(0,14);
         return v.replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d)/, "$1-$2");
@@ -186,7 +186,7 @@
         result.push(cur.trim()); return result;
     }
 
-    // --- PERSISTÊNCIA (LOCALSTORAGE) ---
+    // --- PERSISTÊNCIA (LOCAL STORAGE) ---
     function salvarPedido() {
         const itens = [];
         document.querySelectorAll('tr.has-qty').forEach(tr => {
@@ -206,17 +206,17 @@
             obs: document.getElementById('obsVenda').value,
             itens: itens
         };
-        localStorage.setItem('nek_cache_pedido', JSON.stringify(dados));
+        localStorage.setItem('nek_cache_v3', JSON.stringify(dados));
     }
 
     function limparSistema() {
         if(confirm('Isso apagará todo o pedido atual. Confirma?')) {
-            localStorage.removeItem('nek_cache_pedido');
+            localStorage.removeItem('nek_cache_v3');
             location.reload();
         }
     }
 
-    // --- CLIENTES E BUSCA ---
+    // --- BUSCA CNPJ E AUTOCOMPLETE ---
     document.getElementById('cnpjBusca').addEventListener('input', async e => {
         let v = e.target.value.replace(/\D/g, "");
         e.target.value = aplicarMascaraCNPJ(v);
@@ -277,7 +277,7 @@
         });
     });
 
-    // --- EXPORTAÇÃO ---
+    // --- GERAÇÃO DE ARQUIVOS ---
     const getCnpjFinal = () => document.getElementById('cnpjCadastrado').value || document.getElementById('cnpjBusca').value;
     const getRazaoFinal = () => document.getElementById('razaoSocial').value || "CLIENTE_AVULSO";
 
@@ -332,9 +332,9 @@
         window.print();
     }
 
-    // --- PRODUTOS ---
+    // --- CARREGAMENTO DE PRODUTOS ---
     async function carregarProdutos() {
-        const cache = JSON.parse(localStorage.getItem('nek_cache_pedido') || "null");
+        const cache = JSON.parse(localStorage.getItem('nek_cache_v3') || "null");
         if(cache) {
             document.getElementById('razaoSocial').value = cache.razao || "";
             document.getElementById('cnpjCadastrado').value = cache.cnpjC || "";
@@ -364,7 +364,6 @@
                 const vE = limparNum(c[4]); const vG = limparNum(c[6]);
                 const codB = c[1];
                 
-                // Restaurar Qtd e Desc do Cache
                 const itemSalvo = cache ? cache.itens.find(it => it.c === codB) : null;
                 const qtdIni = itemSalvo ? itemSalvo.q : 0;
                 const descIni = itemSalvo ? itemSalvo.d : 0;
@@ -409,7 +408,6 @@
         document.querySelectorAll('#corpoTabela tr').forEach(tr => { tr.style.display = tr.dataset.search.includes(f) ? "" : "none"; });
     };
 
-    // Salvar cabeçalho automaticamente
     ['razaoSocial','endereco','nomeContato','telefone','obsVenda'].forEach(id => {
         document.getElementById(id).addEventListener('change', salvarPedido);
     });
