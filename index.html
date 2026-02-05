@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.57</title>
+    <title>NEK - Sistema de Pedidos v21.58</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; --dark: #34495e; }
@@ -15,7 +15,6 @@
         .sync-success { background: #d4edda; color: #155724; }
         
         .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; position: relative; }
-        .full-width { grid-column: span 4; }
         
         .autocomplete-suggestions { position: absolute; background: white; border: 1px solid #ccc; z-index: 1000; max-height: 200px; overflow-y: auto; width: 38%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .autocomplete-suggestion { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 13px; }
@@ -28,7 +27,7 @@
         label { display: block; font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
         input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
         
-        /* --- ESTILO DAS COLUNAS v21.45 --- */
+        /* --- ESTILO DAS COLUNAS v21.45 MANTIDO --- */
         .table-container { max-height: 450px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th, td { padding: 8px 6px; border-bottom: 1px solid #eee; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -61,7 +60,7 @@
 <div class="container">
     <div class="header-top">
         <div>
-            <h2 style="margin:0; color:var(--blue);">🚲 NEK - Orçamento de Pedido</h2>
+            <h2 style="margin:0; color:var(--blue);">🚲 NEK - Sistema de Pedidos</h2>
             <div id="syncStatus" class="status-sync">⏳ Conectando...</div>
         </div>
         <div id="data-atual" style="font-weight: bold;"></div>
@@ -70,15 +69,15 @@
     <div class="cliente-grid">
         <div style="grid-column: span 2; position: relative;">
             <label>Razão Social</label>
-            <input type="text" id="razaoSocial" autocomplete="off" placeholder="Pesquisar cliente...">
+            <input type="text" id="razaoSocial" autocomplete="off" oninput="salvarLocalStorage()">
             <div id="sugestoes" class="autocomplete-suggestions"></div>
         </div>
-        <div><label>CNPJ</label><input type="text" id="cnpjCadastrado"></div>
-        <div><label>Busca Externo CNPJ</label><input type="text" id="cnpjBusca" placeholder="00.000.000/0001-00"></div>
-        <div style="grid-column: span 2;"><label>Endereço</label><input type="text" id="endereco"></div>
-        <div><label>Contato</label><input type="text" id="nomeContato"></div>
-        <div><label>Telefone</label><input type="text" id="telefone"></div>
-        <div class="full-width"><div class="total-header-box"><div class="total-header-value" id="headerTotalGeral">R$ 0,000</div></div></div>
+        <div><label>CNPJ</label><input type="text" id="cnpjCadastrado" oninput="salvarLocalStorage()"></div>
+        <div><label>Busca Externo CNPJ</label><input type="text" id="cnpjBusca" placeholder="Apenas números"></div>
+        <div style="grid-column: span 2;"><label>Endereço</label><input type="text" id="endereco" oninput="salvarLocalStorage()"></div>
+        <div><label>Contato</label><input type="text" id="nomeContato" oninput="salvarLocalStorage()"></div>
+        <div><label>Telefone</label><input type="text" id="telefone" oninput="salvarLocalStorage()"></div>
+        <div style="grid-column: span 5;"><div class="total-header-box"><div class="total-header-value" id="headerTotalGeral">R$ 0,000</div></div></div>
     </div>
 
     <div class="box-search"><input type="text" id="inputBusca" placeholder="Pesquisar por código ou descrição..."></div>
@@ -103,11 +102,11 @@
     </div>
 
     <div class="actions-footer">
-        <button class="btn" style="background:var(--red)" onclick="location.reload()">🗑️ Limpar Pedido</button>
+        <button class="btn" style="background:var(--red)" onclick="limparPedido()">🗑️ Limpar Pedido</button>
         <button class="btn" style="background:var(--dark)" onclick="window.print()">🖨️ Imprimir PDF</button>
         <button class="btn" style="background:var(--purple)" onclick="baixarZIP()">📦 Baixar Arquivo ZIP</button>
     </div>
-    <div class="footer-tag">Versão do Sistema: 21.57</div>
+    <div class="footer-tag">Versão do Sistema: 21.58 (Auto-Save On)</div>
 </div>
 
 <script>
@@ -117,7 +116,35 @@
     let listaClientes = [];
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
 
-    // --- CONSULTA CNPJ EXTERNA ---
+    // --- LOCAL STORAGE (SALVAR) ---
+    function salvarLocalStorage() {
+        const itens = [];
+        document.querySelectorAll('tr.has-qty').forEach(tr => {
+            itens.push({
+                c: tr.dataset.codB,
+                q: tr.querySelector('.input-qtd').value,
+                d: tr.querySelector('.input-desc').value
+            });
+        });
+        const dados = {
+            razao: document.getElementById('razaoSocial').value,
+            cnpj: document.getElementById('cnpjCadastrado').value,
+            end: document.getElementById('endereco').value,
+            cont: document.getElementById('nomeContato').value,
+            tel: document.getElementById('telefone').value,
+            itens: itens
+        };
+        localStorage.setItem('nek_save_v21', JSON.stringify(dados));
+    }
+
+    function limparPedido() {
+        if(confirm("Deseja apagar o pedido atual?")) {
+            localStorage.removeItem('nek_save_v21');
+            location.reload();
+        }
+    }
+
+    // --- CONSULTA CNPJ ---
     document.getElementById('cnpjBusca').addEventListener('blur', async function() {
         const cnpj = this.value.replace(/\D/g, '');
         if (cnpj.length !== 14) return;
@@ -127,10 +154,11 @@
             document.getElementById('razaoSocial').value = d.razao_social;
             document.getElementById('endereco').value = `${d.estabelecimento.tipo_logradouro} ${d.estabelecimento.logradouro}, ${d.estabelecimento.numero}`;
             document.getElementById('cnpjCadastrado').value = cnpj;
-        } catch (e) { alert("CNPJ não encontrado na base externa."); }
+            salvarLocalStorage();
+        } catch (e) { alert("Erro na consulta."); }
     });
 
-    // --- CLIENTES INTERNOS ---
+    // --- CLIENTES ---
     async function carregarClientes() {
         try {
             const r = await fetch(URL_CLIENTES);
@@ -140,7 +168,7 @@
                 const c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                 return { nome: c[0]?.replace(/"/g,''), cnpj: c[1], end: c[2], tel: c[3], cont: c[4] };
             });
-        } catch(e) { console.error("Erro ao carregar clientes"); }
+        } catch(e) {}
     }
 
     document.getElementById('razaoSocial').addEventListener('input', function() {
@@ -160,13 +188,23 @@
                 document.getElementById('telefone').value = c.tel || '';
                 document.getElementById('nomeContato').value = c.cont || '';
                 sug.innerHTML = '';
+                salvarLocalStorage();
             };
             sug.appendChild(d);
         });
     });
 
-    // --- PRODUTOS ---
+    // --- PRODUTOS COM RECUPERAÇÃO ---
     async function carregarProdutos() {
+        const backup = JSON.parse(localStorage.getItem('nek_save_v21') || "null");
+        if(backup) {
+            document.getElementById('razaoSocial').value = backup.razao || "";
+            document.getElementById('cnpjCadastrado').value = backup.cnpj || "";
+            document.getElementById('endereco').value = backup.end || "";
+            document.getElementById('nomeContato').value = backup.cont || "";
+            document.getElementById('telefone').value = backup.tel || "";
+        }
+
         try {
             const r = await fetch(URL_PRODUTOS);
             const txt = await r.text();
@@ -176,76 +214,66 @@
             linhas.forEach((l, i) => {
                 if (i === 0 || !l) return;
                 let c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
-                const vE = parseFloat(c[4]) || 0, vG = parseFloat(c[6]) || 0;
+                const vE = parseFloat(c[4]) || 0, vG = parseFloat(c[6]) || 0, codB = c[1];
+                
+                // Busca se esse item estava no backup
+                const itS = backup ? backup.itens.find(it => it.c === codB) : null;
+                const q = itS ? itS.q : 0;
+                const d = itS ? itS.d : 0;
+
                 const tr = document.createElement('tr');
-                tr.dataset.valE = vE; tr.dataset.valG = vG; tr.dataset.codB = c[1];
+                tr.dataset.valE = vE; tr.dataset.valG = vG; tr.dataset.codB = codB;
                 tr.dataset.search = (c[0]+c[1]+c[3]).toLowerCase();
+                if(q > 0) tr.classList.add('has-qty');
                 
                 tr.innerHTML = `<td class="col-cod">${c[0]} / ${c[1]}</td><td class="col-desc">${c[3]}</td><td class="col-un">${c[2]}</td>
                     <td class="col-vlr">R$ ${vE.toFixed(3).replace('.',',')}</td><td class="col-vlr">R$ ${vG.toFixed(3).replace('.',',')}</td>
-                    <td class="col-qtd"><input type="number" class="input-qtd" value="0" oninput="atu(this)"></td>
-                    <td class="col-desc-p"><input type="number" class="input-desc" value="0" oninput="atu(this)"></td>
+                    <td class="col-qtd"><input type="number" class="input-qtd" value="${q}" oninput="atu(this)"></td>
+                    <td class="col-desc-p"><input type="number" class="input-desc" value="${d}" oninput="atu(this)"></td>
                     <td class="col-tot">R$ 0,000</td><td class="col-tot">R$ 0,000</td>`;
                 tb.appendChild(tr);
+                if(q > 0) atu(tr.querySelector('.input-qtd'), false);
             });
             document.getElementById('syncStatus').innerText = "✅ Banco de Dados OK";
-            document.getElementById('syncStatus').className = "status-sync sync-success";
-        } catch(e) { document.getElementById('syncStatus').innerText = "❌ Erro ao carregar"; }
+        } catch(e) { document.getElementById('syncStatus').innerText = "❌ Erro"; }
     }
 
-    function atu(el) {
+    function atu(el, salvar = true) {
         const tr = el.closest('tr');
         const q = parseFloat(tr.querySelector('.input-qtd').value) || 0, d = parseFloat(tr.querySelector('.input-desc').value) || 0;
         q > 0 ? tr.classList.add('has-qty') : tr.classList.remove('has-qty');
         const vE = parseFloat(tr.dataset.valE), vG = parseFloat(tr.dataset.valG);
         tr.cells[7].innerText = "R$ " + ((vE * q) * (1 - (d/100))).toFixed(3).replace('.',',');
         tr.cells[8].innerText = "R$ " + ((vG * q) * (1 - (d/100))).toFixed(3).replace('.',',');
+        
         let total = 0;
         document.querySelectorAll('tr.has-qty').forEach(t => {
-            const tq = parseFloat(t.querySelector('.input-qtd').value), td = parseFloat(t.querySelector('.input-desc').value);
-            total += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
+            total += (parseFloat(t.dataset.valG) * parseFloat(t.querySelector('.input-qtd').value)) * (1 - (parseFloat(t.querySelector('.input-desc').value)/100));
         });
         document.getElementById('headerTotalGeral').innerText = "R$ " + total.toFixed(3).replace('.',',');
+        if(salvar) salvarLocalStorage();
     }
 
-    // --- ZIP E RELATÓRIO ---
+    // --- ZIP ---
     async function baixarZIP() {
         const zip = new JSZip();
-        const nomeCli = document.getElementById('razaoSocial').value || 'NEK_ORCAMENTO';
-        
-        // CSV de Importação
+        const nomeCli = document.getElementById('razaoSocial').value || 'ORCAMENTO';
         let csv = "CD_PRODUTO;QUANTIDADE;DESCONTO\n";
-        // TXT de Resumo
-        let txt = `NEK SISTEMAS - RESUMO DO PEDIDO\n`;
-        txt += `-------------------------------------------\n`;
-        txt += `Cliente: ${nomeCli}\n`;
-        txt += `CNPJ: ${document.getElementById('cnpjCadastrado').value}\n`;
-        txt += `Endereço: ${document.getElementById('endereco').value}\n`;
-        txt += `Data: ${new Date().toLocaleString()}\n`;
-        txt += `-------------------------------------------\n\n`;
-        txt += `PRODUTOS:\n`;
+        let txt = `RESUMO DO PEDIDO\nCliente: ${nomeCli}\nCNPJ: ${document.getElementById('cnpjCadastrado').value}\n\nITENS:\n`;
 
-        let itensValidos = 0;
         document.querySelectorAll('tr.has-qty').forEach(tr => {
             const q = tr.querySelector('.input-qtd').value;
             const d = tr.querySelector('.input-desc').value;
             csv += `${tr.dataset.codB};${q};${d}\n`;
-            txt += `- ${tr.cells[0].innerText} | ${tr.cells[1].innerText} | Qtd: ${q} | Desc: ${d}%\n`;
-            itensValidos++;
+            txt += `- ${tr.cells[0].innerText} | Qtd: ${q} | Desc: ${d}%\n`;
         });
 
-        if(itensValidos === 0) return alert("Adicione pelo menos um produto!");
-
-        txt += `\n-------------------------------------------\n`;
-        txt += `TOTAL DO PEDIDO: ${document.getElementById('headerTotalGeral').innerText}\n`;
-
-        zip.file("IMPORTAR_SISTEMA.csv", "\ufeff" + csv);
-        zip.file("RESUMO_PEDIDO.txt", txt);
-        
-        const content = await zip.generateAsync({type:"blob"});
+        zip.file("IMPORTAR.csv", "\ufeff" + csv);
+        zip.file("RESUMO.txt", txt);
+        const blob = await zip.generateAsync({type:"blob"});
         const link = document.createElement("a");
-        link.href = URL.createObjectURL(content);
-        link.download = `${nomeCli.substring(0,20)}.zip`;
+        link.href = URL.createObjectURL(blob);
+        link.download = `${nomeCli}.zip`;
         link.click();
     }
 
