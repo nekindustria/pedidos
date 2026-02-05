@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.54</title>
+    <title>NEK - Sistema de Pedidos v21.55</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; --dark: #34495e; }
@@ -17,7 +17,7 @@
         .cliente-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; align-items: end; position: relative; }
         .full-width { grid-column: span 4; }
         
-        .autocomplete-suggestions { position: absolute; background: white; border: 1px solid #ccc; z-index: 1000; max-height: 200px; overflow-y: auto; width: 38%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 0 0 8px 8px; }
+        .autocomplete-suggestions { position: absolute; background: white; border: 1px solid #ccc; z-index: 1000; max-height: 200px; overflow-y: auto; width: 38%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .autocomplete-suggestion { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 13px; }
         .autocomplete-suggestion:hover { background: #f0f0f0; }
 
@@ -28,12 +28,12 @@
         label { display: block; font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
         input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
         
-        .table-container { max-height: 450px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
+        .table-container { max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th, td { padding: 8px 6px; border-bottom: 1px solid #eee; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         th { background: var(--blue); color: white; position: sticky; top: 0; z-index: 10; font-size: 11px; text-transform: uppercase; }
 
-        /* Colunagem v21.45 Proporcional */
+        /* Colunagem 21.45 */
         .col-cod { width: 11%; }
         .col-desc { width: 32%; }
         .col-un { width: 5%; text-align: center; }
@@ -42,14 +42,16 @@
         .col-desc-p { width: 7%; text-align: center; }
         .col-tot { width: 9%; text-align: right; }
 
-        .input-qtd, .input-desc { width: 85%; font-weight: bold; text-align: center; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; font-size: 13px; }
+        .input-qtd, .input-desc { width: 85%; font-weight: bold; text-align: center; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; }
         
-        .footer-info { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #999; }
-        .actions-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+        .actions-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; flex-wrap: wrap; border-top: 2px solid #eee; padding-top: 15px; }
         .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; color: white; display: flex; align-items: center; gap: 5px; }
+        
+        #modalHistory { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); }
+        .modal-content { background: white; margin: 5% auto; padding: 25px; width: 70%; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); }
 
         @media print {
-            .box-search, .actions-footer, .btn, .status-sync, #cnpjBusca, input, .footer-info, .autocomplete-suggestions { display: none !important; }
+            .box-search, .actions-footer, .btn, .status-sync, #cnpjBusca, input, .footer-info { display: none !important; }
             tbody tr { display: none !important; }
             tbody tr.has-qty { display: table-row !important; }
             .container { box-shadow: none !important; border: none !important; width: 100% !important; padding: 0 !important; }
@@ -63,10 +65,13 @@
 <div class="container">
     <div class="header-top">
         <div>
-            <h2 style="margin:0; color:var(--blue);">🚲 NEK - Orçamento de Pedido</h2>
+            <h2 style="margin:0; color:var(--blue);">🚲 NEK - Sistema de Pedido</h2>
             <div id="syncStatus" class="status-sync">⏳ Conectando...</div>
         </div>
-        <div id="data-atual" style="font-weight: bold;"></div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn" style="background:var(--dark)" onclick="abrirHistorico()">📂 Ver Pedidos Salvos</button>
+            <div id="data-atual" style="font-weight: bold;"></div>
+        </div>
     </div>
 
     <div class="cliente-grid">
@@ -83,7 +88,7 @@
         <div class="full-width"><div class="total-header-box"><div class="total-header-value" id="headerTotalGeral">R$ 0,000</div></div></div>
     </div>
 
-    <div class="box-search"><input type="text" id="inputBusca" placeholder="Filtrar por código ou descrição..."></div>
+    <div class="box-search"><input type="text" id="inputBusca" placeholder="Filtrar produtos..."></div>
 
     <div class="table-container">
         <table>
@@ -104,15 +109,21 @@
         </table>
     </div>
 
-    <div class="footer-info">
-        <span>Desenvolvido por NEK Sistemas</span>
-        <span>Versão do Sistema: 21.54 (Auto-Save Ativo)</span>
-    </div>
-
     <div class="actions-footer">
-        <button class="btn" style="background:var(--red)" onclick="limparTudo()">🗑️ Limpar Pedido</button>
-        <button class="btn" style="background:var(--accent)" onclick="window.print()">🖨️ Imprimir / PDF</button>
-        <button class="btn" style="background:var(--green)" onclick="exportarCSV()">📄 Exportar CSV</button>
+        <button class="btn" style="background:var(--red)" onclick="limparTudo()">🗑️ Limpar Atual</button>
+        <button class="btn" style="background:var(--accent)" onclick="arquivarPedido()">💾 Salvar no Histórico</button>
+        <button class="btn" style="background:var(--dark)" onclick="window.print()">🖨️ Imprimir</button>
+        <button class="btn" style="background:var(--green)" onclick="exportarCSV()">📄 CSV</button>
+        <button class="btn" style="background:var(--purple)" onclick="baixarZIP()">📦 Baixar ZIP</button>
+    </div>
+    <div style="text-align: right; font-size: 10px; color: #999; margin-top: 5px;">Versão 21.55</div>
+</div>
+
+<div id="modalHistory">
+    <div class="modal-content">
+        <h3 style="margin-top:0">📋 Histórico de Pedidos Salvos</h3>
+        <div id="listaHistorico" style="max-height:300px; overflow-y:auto; margin-bottom:20px; border:1px solid #eee; padding:10px;"></div>
+        <button class="btn" style="background:var(--blue)" onclick="fecharHistorico()">Fechar</button>
     </div>
 </div>
 
@@ -122,17 +133,12 @@
     
     let listaClientes = [];
 
-    // --- LÓGICA DE BACKUP (LOCAL STORAGE) ---
+    // --- PERSISTÊNCIA ---
     function salvarProgresso() {
         const itens = [];
         document.querySelectorAll('tr.has-qty').forEach(tr => {
-            itens.push({
-                c: tr.dataset.codB,
-                q: tr.querySelector('.input-qtd').value,
-                d: tr.querySelector('.input-desc').value
-            });
+            itens.push({ c: tr.dataset.codB, q: tr.querySelector('.input-qtd').value, d: tr.querySelector('.input-desc').value });
         });
-
         const dados = {
             razao: document.getElementById('razaoSocial').value,
             cnpj: document.getElementById('cnpjCadastrado').value,
@@ -144,14 +150,60 @@
         localStorage.setItem('nek_autosave', JSON.stringify(dados));
     }
 
-    function limparTudo() {
-        if(confirm("Deseja realmente apagar todo o pedido atual?")) {
-            localStorage.removeItem('nek_autosave');
-            location.reload();
-        }
+    function arquivarPedido() {
+        const dados = JSON.parse(localStorage.getItem('nek_autosave') || "{}");
+        if(!dados.itens || dados.itens.length === 0) return alert("Adicione produtos primeiro!");
+        let h = JSON.parse(localStorage.getItem('nek_hist') || "[]");
+        h.unshift({ data: new Date().toLocaleString(), cliente: dados.razao || "Avulso", total: document.getElementById('headerTotalGeral').innerText, raw: dados });
+        localStorage.setItem('nek_hist', JSON.stringify(h.slice(0,30)));
+        alert("Pedido arquivado com sucesso!");
     }
 
-    // --- CLIENTES E CNPJ ---
+    function abrirHistorico() {
+        const l = document.getElementById('listaHistorico');
+        const h = JSON.parse(localStorage.getItem('nek_hist') || "[]");
+        l.innerHTML = h.length ? h.map((p, i) => `
+            <div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; align-items:center;">
+                <small>${p.data} - <b>${p.cliente}</b> - ${p.total}</small>
+                <button onclick="restaurarDoHist(${i})" style="padding:2px 5px; cursor:pointer;">Abrir</button>
+            </div>`).join('') : "Nenhum pedido salvo.";
+        document.getElementById('modalHistory').style.display = 'block';
+    }
+
+    function restaurarDoHist(index) {
+        const h = JSON.parse(localStorage.getItem('nek_hist'));
+        localStorage.setItem('nek_autosave', JSON.stringify(h[index].raw));
+        location.reload();
+    }
+
+    function fecharHistorico() { document.getElementById('modalHistory').style.display = 'none'; }
+    function limparTudo() { if(confirm("Limpar tela?")) { localStorage.removeItem('nek_autosave'); location.reload(); } }
+
+    // --- DOWNLOADS ---
+    function gerarCSVContent() {
+        let csv = "CD_PRODUTO;QUANTIDADE;DESCONTO\n";
+        document.querySelectorAll('tr.has-qty').forEach(tr => {
+            csv += `${tr.dataset.codB};${tr.querySelector('.input-qtd').value};${tr.querySelector('.input-desc').value}\n`;
+        });
+        return "\ufeff" + csv;
+    }
+
+    function exportarCSV() {
+        const blob = new Blob([gerarCSVContent()], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+        link.download = `PEDIDO_${document.getElementById('razaoSocial').value || 'NEK'}.csv`; link.click();
+    }
+
+    async function baixarZIP() {
+        const zip = new JSZip();
+        const nome = document.getElementById('razaoSocial').value || 'NEK';
+        zip.file(`IMPORTAR_${nome}.csv`, gerarCSVContent());
+        const content = await zip.generateAsync({type:"blob"});
+        const link = document.createElement("a"); link.href = URL.createObjectURL(content);
+        link.download = `PEDIDO_${nome}.zip`; link.click();
+    }
+
+    // --- CARGAS E BUSCAS (Igual v21.54) ---
     async function carregarClientes() {
         try {
             const r = await fetch(URL_CLIENTES);
@@ -161,7 +213,7 @@
                 const c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                 return { nome: c[0]?.replace(/"/g,''), cnpj: c[1], end: c[2], tel: c[3], cont: c[4] };
             });
-        } catch(e) { console.error("Erro clientes"); }
+        } catch(e) {}
     }
 
     document.getElementById('razaoSocial').addEventListener('input', function() {
@@ -180,27 +232,12 @@
                 document.getElementById('endereco').value = c.end;
                 document.getElementById('telefone').value = c.tel;
                 document.getElementById('nomeContato').value = c.cont;
-                sug.innerHTML = '';
-                salvarProgresso();
+                sug.innerHTML = ''; salvarProgresso();
             };
             sug.appendChild(d);
         });
     });
 
-    document.getElementById('cnpjBusca').addEventListener('blur', async function() {
-        const cnpj = this.value.replace(/\D/g, '');
-        if (cnpj.length !== 14) return;
-        try {
-            const res = await fetch(`https://publica.cnpj.ws/cnpj/${cnpj}`);
-            const data = await res.json();
-            document.getElementById('razaoSocial').value = data.razao_social;
-            document.getElementById('endereco').value = `${data.estabelecimento.tipo_logradouro} ${data.estabelecimento.logradouro}, ${data.estabelecimento.numero}`;
-            document.getElementById('cnpjCadastrado').value = data.cnpj_raiz + data.estabelecimento.cnpj_ordem + data.estabelecimento.cnpj_dv;
-            salvarProgresso();
-        } catch (e) { alert("CNPJ não encontrado."); }
-    });
-
-    // --- PRODUTOS ---
     async function carregarProdutos() {
         const backup = JSON.parse(localStorage.getItem('nek_autosave') || "null");
         if(backup) {
@@ -210,63 +247,50 @@
             document.getElementById('nomeContato').value = backup.cont || "";
             document.getElementById('telefone').value = backup.tel || "";
         }
-
         try {
             const r = await fetch(URL_PRODUTOS);
             const txt = await r.text();
             const linhas = txt.split(/\r?\n/);
             const tb = document.getElementById('corpoTabela');
-            
             linhas.forEach((l, i) => {
                 if (i === 0 || !l) return;
                 const c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                 if (c.length < 5) return;
-                
                 const vE = parseFloat(c[4]) || 0, vG = parseFloat(c[6]) || 0, codB = c[1];
-                const itemSalvo = backup ? backup.itens.find(it => it.c === codB) : null;
-                const q = itemSalvo ? itemSalvo.q : 0;
-                const d = itemSalvo ? itemSalvo.d : 0;
-
+                const itS = backup ? backup.itens.find(it => it.c === codB) : null;
+                const q = itS ? itS.q : 0, d = itS ? itS.d : 0;
                 const tr = document.createElement('tr');
                 tr.dataset.valE = vE; tr.dataset.valG = vG; tr.dataset.codB = codB;
                 tr.dataset.search = (c[0]+c[1]+c[3]).toLowerCase();
                 if(q > 0) tr.classList.add('has-qty');
-
                 tr.innerHTML = `<td>${c[0]} / ${c[1]}</td><td>${c[3]}</td><td style="text-align:center">${c[2]}</td>
                     <td style="text-align:right">R$ ${vE.toFixed(3).replace('.',',')}</td><td style="text-align:right">R$ ${vG.toFixed(3).replace('.',',')}</td>
-                    <td><input type="number" class="input-qtd" value="${q}" oninput="atu(this)" onfocus="this.select()"></td>
-                    <td><input type="number" class="input-desc" value="${d}" oninput="atu(this)" onfocus="this.select()"></td>
+                    <td><input type="number" class="input-qtd" value="${q}" oninput="atu(this)"></td>
+                    <td><input type="number" class="input-desc" value="${d}" oninput="atu(this)"></td>
                     <td style="text-align:right">R$ 0,000</td><td style="text-align:right">R$ 0,000</td>`;
                 tb.appendChild(tr);
                 if(q > 0) atu(tr.querySelector('.input-qtd'), false);
             });
             document.getElementById('syncStatus').innerText = "✅ Online";
             document.getElementById('syncStatus').className = "status-sync sync-success";
-            atualizarTotalGeral();
-        } catch(e) { document.getElementById('syncStatus').innerText = "❌ Erro Planilha"; }
+            atuTotal();
+        } catch(e) { document.getElementById('syncStatus').innerText = "❌ Erro"; }
     }
 
-    function atu(el, salvar = true) {
+    function atu(el, s = true) {
         const tr = el.closest('tr');
         const q = parseFloat(tr.querySelector('.input-qtd').value) || 0;
         const d = parseFloat(tr.querySelector('.input-desc').value) || 0;
-        
         q > 0 ? tr.classList.add('has-qty') : tr.classList.remove('has-qty');
-        
-        const vE = parseFloat(tr.dataset.valE), vG = parseFloat(tr.dataset.valG);
-        tr.cells[7].innerText = "R$ " + ((vE * q) * (1 - (d/100))).toFixed(3).replace('.',',');
-        tr.cells[8].innerText = "R$ " + ((vG * q) * (1 - (d/100))).toFixed(3).replace('.',',');
-        
-        atualizarTotalGeral();
-        if(salvar) salvarProgresso();
+        tr.cells[7].innerText = "R$ " + ((parseFloat(tr.dataset.valE) * q) * (1 - (d/100))).toFixed(3).replace('.',',');
+        tr.cells[8].innerText = "R$ " + ((parseFloat(tr.dataset.valG) * q) * (1 - (d/100))).toFixed(3).replace('.',',');
+        atuTotal(); if(s) salvarProgresso();
     }
 
-    function atualizarTotalGeral() {
+    function atuTotal() {
         let tot = 0;
         document.querySelectorAll('tr.has-qty').forEach(t => {
-            const tq = parseFloat(t.querySelector('.input-qtd').value) || 0;
-            const td = parseFloat(t.querySelector('.input-desc').value) || 0;
-            tot += (parseFloat(t.dataset.valG) * tq) * (1 - (td/100));
+            tot += (parseFloat(t.dataset.valG) * parseFloat(t.querySelector('.input-qtd').value)) * (1 - (parseFloat(t.querySelector('.input-desc').value)/100));
         });
         document.getElementById('headerTotalGeral').innerText = "R$ " + tot.toFixed(3).replace('.',',');
     }
@@ -277,7 +301,6 @@
     };
 
     document.getElementById('data-atual').innerText = "Data: " + new Date().toLocaleDateString('pt-BR');
-    
     carregarClientes();
     carregarProdutos();
 </script>
