@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEK - Sistema de Pedidos v21.48</title>
+    <title>NEK - Sistema de Pedidos v21.49</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --blue: #2c3e50; --accent: #3498db; --green: #27ae60; --red: #e74c3c; --light: #f4f7f6; --yellow: #fff9c4; --purple: #8e44ad; --dark: #34495e; }
@@ -28,19 +28,19 @@
         label { display: block; font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
         input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; }
         
-        /* --- AJUSTE DE COLUNAS EM MM --- */
+        /* --- AJUSTE DE COLUNAS v21.49 --- */
         .table-container { max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fff; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th, td { padding: 6px 4px; border-bottom: 1px solid #eee; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        th { background: var(--blue); color: white; position: sticky; top: 0; z-index: 10; font-size: 10px; text-transform: uppercase; }
+        th { background: var(--blue); color: white; position: sticky; top: 0; z-index: 10; font-size: 9px; text-transform: uppercase; }
 
         .col-cod { width: 22mm; }
-        .col-desc { width: 38mm; }
+        .col-desc { width: 46mm; } /* +8mm aqui */
         .col-un { width: 7mm; text-align: center; }
-        .col-vlr { width: 24mm; text-align: right; }
+        .col-vlr { width: 22mm; text-align: right; } /* -2mm aqui */
         .col-qtd { width: 12mm; text-align: center; }
         .col-desc-p { width: 10mm; text-align: center; }
-        .col-tot { width: 26mm; text-align: right; }
+        .col-tot { width: 24mm; text-align: right; } /* -2mm aqui */
 
         .input-qtd, .input-desc { width: 100%; font-weight: bold; text-align: center; border: 1px solid var(--accent); border-radius: 4px; padding: 4px; }
         
@@ -150,7 +150,7 @@
     const SHEET_CLIENTES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQYCLsgEtBzLW7931ivMquRWiwRl9twob9MOnuuQAA5MtukdGVOQPsJJiWsSlzlFZDzKpmj3nRAOoRJ/pub?output=csv';
     let listaClientes = [];
 
-    // --- LÓGICA DE BACKUP E HISTÓRICO ---
+    // --- FUNÇÕES DE PERSISTÊNCIA ---
     function capturarEstadoAtual() {
         const itens = [];
         document.querySelectorAll('tr.has-qty').forEach(tr => {
@@ -181,18 +181,18 @@
         let hist = JSON.parse(localStorage.getItem('nek_historico_pedidos') || "[]");
         hist.unshift(pedido);
         localStorage.setItem('nek_historico_pedidos', JSON.stringify(hist.slice(0, 50)));
-        alert("Arquivado com sucesso!");
+        alert("Pedido arquivado com sucesso!");
     }
 
     function abrirHistorico() {
         const lista = document.getElementById('listaHistorico');
         const hist = JSON.parse(localStorage.getItem('nek_historico_pedidos') || "[]");
-        lista.innerHTML = hist.length ? "" : "<p>Vazio.</p>";
+        lista.innerHTML = hist.length ? "" : "<p>Nenhum pedido arquivado.</p>";
         hist.forEach(p => {
             const div = document.createElement('div');
             div.className = 'history-item';
-            div.innerHTML = `<small>${p.data}</small><strong>${p.cliente.razao}</strong><span style="color:var(--green)">${p.total}</span>
-                <div><button class="btn btn-save-local" style="padding:5px" onclick="carregarPedidoHist(${p.id})">Abrir</button></div>`;
+            div.innerHTML = `<small>${p.data}</small><strong>${p.cliente.razao || 'Avulso'}</strong><span style="color:var(--green)">${p.total}</span>
+                <button class="btn btn-save-local" style="padding:5px" onclick="carregarPedidoHist(${p.id})">Abrir</button>`;
             lista.appendChild(div);
         });
         document.getElementById('modalHistory').style.display = 'block';
@@ -201,27 +201,29 @@
     function carregarPedidoHist(id) {
         const hist = JSON.parse(localStorage.getItem('nek_historico_pedidos') || "[]");
         const pedido = hist.find(p => p.id === id);
-        if(pedido && confirm('Substituir atual?')) {
+        if(pedido && confirm('Substituir pedido atual na tela?')) {
             localStorage.setItem('nek_pedido_backup', JSON.stringify(pedido));
             location.reload();
         }
     }
 
     function fecharHistorico() { document.getElementById('modalHistory').style.display = 'none'; }
-    function limparPedido() { if(confirm('Limpar tudo?')) { localStorage.removeItem('nek_pedido_backup'); location.reload(); } }
+    function limparPedido() { if(confirm('Limpar tela e backup automático?')) { localStorage.removeItem('nek_pedido_backup'); location.reload(); } }
 
-    // --- LÓGICA DE PRODUTOS ---
+    // --- LOGICA CORE ---
+    function parseCSVLine(line) { const res = []; let cur = ''; let q = false; for (let i = 0; i < line.length; i++) { if (line[i] === '"') q = !q; else if (line[i] === ',' && !q) { res.push(cur.trim()); cur = ''; } else cur += line[i]; } res.push(cur.trim()); return res; }
+
     async function carregarProdutos() {
         const backup = JSON.parse(localStorage.getItem('nek_pedido_backup') || "null");
         const itensSalvos = backup ? backup.itens : [];
         if(backup) {
-            document.getElementById('razaoSocial').value = backup.cliente.razao;
-            document.getElementById('cnpjCadastrado').value = backup.cliente.cnpjCad;
-            document.getElementById('cnpjBusca').value = backup.cliente.cnpjBusca;
-            document.getElementById('endereco').value = backup.cliente.endereco;
-            document.getElementById('nomeContato').value = backup.cliente.contato;
-            document.getElementById('telefone').value = backup.cliente.telefone;
-            document.getElementById('obsVenda').value = backup.cliente.obs;
+            document.getElementById('razaoSocial').value = backup.cliente.razao || "";
+            document.getElementById('cnpjCadastrado').value = backup.cliente.cnpjCad || "";
+            document.getElementById('cnpjBusca').value = backup.cliente.cnpjBusca || "";
+            document.getElementById('endereco').value = backup.cliente.endereco || "";
+            document.getElementById('nomeContato').value = backup.cliente.contato || "";
+            document.getElementById('telefone').value = backup.cliente.telefone || "";
+            document.getElementById('obsVenda').value = backup.cliente.obs || "";
         }
         try {
             const r = await fetch(SHEET_PRODUTOS);
@@ -232,7 +234,7 @@
             
             linhas.forEach((l, i) => {
                 if (i === 0 || !l) return;
-                let c = parseCSVLine(l);
+                let c = parseCSVLine(l); if (c.length < 5) return;
                 const vE = limparNum(c[4]), vG = limparNum(c[6]), codB = c[1];
                 const itB = itensSalvos.find(it => it.codB === codB);
                 const q = itB ? itB.qtd : 0, d = itB ? itB.desc : 0;
@@ -269,9 +271,6 @@
         salvarBackup();
     }
 
-    // Auxiliares (CNPJ, CSV, ZIP, Busca) mantidos
-    function parseCSVLine(line) { const res = []; let cur = ''; let q = false; for (let i = 0; i < line.length; i++) { if (line[i] === '"') q = !q; else if (line[i] === ',' && !q) { res.push(cur.trim()); cur = ''; } else cur += line[i]; } res.push(cur.trim()); return res; }
-    
     document.getElementById('inputBusca').onkeyup = function() {
         const f = this.value.toLowerCase();
         document.querySelectorAll('#corpoTabela tr').forEach(tr => tr.style.display = tr.dataset.search.includes(f) ? "" : "none");
@@ -290,7 +289,7 @@
 
     async function baixarZIP() {
         const zip = new JSZip(); const r = (document.getElementById('razaoSocial').value || 'AVULSO').replace(/\s+/g, '_');
-        zip.file(`IMPORTAR_${r}.csv`, "..."); // Lógica simplificada para o exemplo
+        zip.file(`IMPORTAR_${r}.csv`, "..."); // Lógica real de CSV deve ser replicada aqui
         const content = await zip.generateAsync({type:"blob"});
         const link = document.createElement("a"); link.href = URL.createObjectURL(content); link.download = `PEDIDO_${r}.zip`; link.click();
     }
@@ -302,6 +301,10 @@
         });
         window.print();
     }
+
+    ['razaoSocial','cnpjBusca','endereco','nomeContato','telefone','obsVenda'].forEach(id => {
+        document.getElementById(id).addEventListener('input', salvarBackup);
+    });
 
     carregarProdutos();
 </script>
